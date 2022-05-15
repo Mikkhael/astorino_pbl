@@ -1,0 +1,70 @@
+.PROGRAM Ctr_inv2
+   CmdWordA = 0
+   CmdWordB = 0
+   CmdWordC = 0
+   CurrentBitPower = 1
+   
+   alt = 1
+   dummy = 1
+   SIGNAL -1
+   TWAIT 3
+   FOR bit = 0 TO 8
+      alt = 0-alt
+      awaitsend = (1+alt)/2
+      ret = awaitsend
+      WHILE ret == awaitsend DO
+         WHILE ((SIG(1008)) == awaitsend) DO
+            dummy = 1 - dummy
+            TWAIT 0.2
+         END
+         ret = (SIG(1008))
+      END
+      SIGNAL 1
+      ValueA = 0 + (SIG(1001))
+      ValueB = 0 + (SIG(1002))
+      IF ValueA == 1 THEN
+         ValueA = 0 + (SIG(1001))
+      END
+      IF ValueB == 1 THEN
+         ValueB = 0 + (SIG(1002))
+      END
+      CmdWordA = CmdWordA + ValueA * CurrentBitPower * 1
+      CmdWordA = CmdWordA + ValueB * CurrentBitPower * 2
+      CurrentBitPower = CurrentBitPower * 4
+      SIGNAL 2*alt
+   END
+   TWAIT 3
+   IF (CmdWordA == 0) THEN
+      JMOVE P15
+      JMOVE P16
+      JMOVE P17
+      JMOVE P15
+   END
+   IF (CmdWordA == 1) THEN
+      JMOVE P15
+      LAPPRO P17, 10
+      LMOVE P17
+      LDEPART 10
+      LAPPRO P18, 10
+      LMOVE P18
+      LDEPART 10
+      JMOVE P15
+   END
+   IF (CmdWordA == 2) THEN
+      JMOVE P15
+      LMOVE P16
+      LMOVE P17
+      JMOVE P15
+   END
+   IF (CmdWordA == 123) THEN
+      JMOVE P15
+      JMOVE P17
+      JMOVE P15
+   END
+   IF (CmdWordA == 88) THEN
+      JMOVE P15
+      JMOVE P16
+      JMOVE P15
+   END
+   SIGNAL -1
+.END 

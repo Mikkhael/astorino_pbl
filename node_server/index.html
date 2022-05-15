@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+
+<html>
+   <head>
+      
+		
+   </head>
+   
+   <body>
+   
+		<img id="image" />
+	
+      
+      <script>
+		// Let us open a web socket
+		var ws = new WebSocket("ws://localhost");
+		const image = document.getElementById("image");
+
+
+		let url;
+		ws.onmessage = function (evt) {
+			let data = evt.data;
+			console.log(data);
+			if(url)
+				URL.revokeObjectURL(url);
+			url = URL.createObjectURL(data);
+			console.log(url);
+			image.src = url;
+			
+		};
+ 
+		 
+      </script>
+   </body>
+</html>

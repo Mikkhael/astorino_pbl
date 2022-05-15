@@ -1,0 +1,90 @@
+.PROGRAM MB_CTR2
+   PinSendNr = 1008
+   PinIdleNr = 1
+   PinAckNr  = 2
+   PinsCmdNr = 1001
+   CurrentBitPower = 1
+   CmdWordA = 0
+   CmdWordB = 0
+   CmdWordC = 0
+   SIGNAL 1
+   FOR bit = 0 TO 16
+      SWAIT 1008
+      SIGNAL -1
+      Value = 1 - (SIG(1001))
+      CmdWordA = CmdWordA + Value * CurrentBitPower
+      CurrentBitPower = CurrentBitPower * 2
+      SIGNAL 2
+      SWAIT -1008
+      SIGNAL -2
+   END
+   IF (CmdWordA > 128) THEN
+      CurrentBitPower = 1
+      FOR bit = 0 TO 16
+         SWAIT 1008
+         Value = 1 - (SIG(1001))
+         CmdWordB = CmdWordB + Value * CurrentBitPower
+         CurrentBitPower = CurrentBitPower * 2
+         SIGNAL 2
+         SWAIT -1008
+         SIGNAL -2
+      END
+   END
+   IF (CmdWordA > 256) THEN
+      CurrentBitPower = 1
+      FOR bit = 0 TO 16
+         SWAIT 1008
+         Value = 1 - (SIG(1001))
+         CmdWordC = CmdWordC + Value * CurrentBitPower
+         CurrentBitPower = CurrentBitPower * 2
+         SIGNAL 2
+         SWAIT -1008
+         SIGNAL -2
+      END
+   END
+   IF (CmdWordA == 0) THEN
+      JMOVE P15
+      JMOVE P16
+      JMOVE P17
+      JMOVE P15
+   END
+   IF (CmdWordA == 1) THEN
+      JMOVE P15
+      LAPPRO P17, 10
+      LMOVE P17
+      TWAIT 0.5
+      LDEPART 10
+      LAPPRO P18, 10
+      LMOVE P18
+      TWAIT 0.5
+      LDEPART 10
+      JMOVE P15
+   END
+   IF (CmdWordA == 2) THEN
+      JMOVE P15
+      LMOVE P16
+      LMOVE P17
+      JMOVE P15
+   END
+   IF (CmdWordA == 100) THEN
+      HERE h
+      POINT dest = SHIFT(h BY CmdWordB - 500, 0, 0)
+      JMOVE dest
+   END
+   IF (CmdWordA == 101) THEN
+      HERE h
+      POINT dest = SHIFT(h BY 0, CmdWordB - 500, 0)
+      JMOVE dest
+   END
+   IF (CmdWordA == 102) THEN
+      HERE h
+      POINT dest = SHIFT(h BY 0, 0, CmdWordB - 500)
+      JMOVE dest
+   END
+   IF (CmdWordA == 300) THEN
+      POINT dest = SHIFT(P15 BY CmdWordB - 500, CmdWordC - 500, 0)
+      JMOVE dest
+   END
+   SIGNAL 1
+.END
+
