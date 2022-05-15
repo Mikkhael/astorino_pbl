@@ -7,7 +7,7 @@ const char* HELP_STR =
 "==== HELP ==== \n"
 "help                  - prints help\n"
 "conf                  - show current config\n"
-"add (x1) (x2)         - adds two numbers\n"
+"add x1 x2             - adds two numbers\n"
 "mbr (r|h|i|c) addr    - reads from modbus\n"
 "mbw (r|h|i|c) addr val- writes to modbus\n"
 "mbrlog (0|1)          - logging mb reads\n"
@@ -17,8 +17,12 @@ const char* HELP_STR =
 "invout (0|1)          - set inverting output\n"
 "invin  (0|1)          - set inverting input\n"
 "mode (single|adv|alt) - set cmd sending mode\n"
-"word (size)           - set cmd word size (in bits)\n"
+"word size             - set cmd word size (in bits)\n"
 "usepcf (0|1)          - set wheather using PCF\n"
+"listpins              - shows currently assigned pcf pins\n"
+"assignpin name pin    - assigns a pcf pin to a name\n"
+"readpcf               - reads all pcf pins\n"
+"writepcf pin (0|1)    - sets output pcf pin\n"
 "stopsend              - aborts sending cmd\n"
 "=====";
 
@@ -121,7 +125,7 @@ struct CommandManager
       acm->enqueueCommand(msg);
     }
     else if(args[0] == "cmdpins"){
-      auto val = args[1].toInt();
+      int val = args[1].toInt();
       if(val > IOManager::CmdPinsCountMax)
         val = IOManager::CmdPinsCountMax;
       Serial.printf("Setting Cmd Pins Count to %d.\n", val);
@@ -137,6 +141,7 @@ struct CommandManager
       ioManager.invertedInput = args[1][0] == '1';
       Serial.printf("Setting Inverting Input to: ");
       Serial.println(ioManager.invertedInput);
+      ioManager.setupPins();
     }
     else if(args[0] == "mode"){
       acm->abort();
@@ -150,10 +155,10 @@ struct CommandManager
         acm->sendingMode = AstorinoCmdManager::Mode::Alternating;
       }
       else{
-        Serial.printf("Unknown mode %s\n", args[1]);
+        Serial.printf("Unknown mode %s\n", args[1].c_str());
         return;
       }
-      Serial.printf("Set mode to %s\n", args[1]);
+      Serial.printf("Set mode to %s\n", args[1].c_str());
     }
     else if(args[0] == "word"){
       int val = args[1].toInt();
@@ -168,9 +173,29 @@ struct CommandManager
       ioManager.usePcf = val;
       ioManager.setupPins();
     }
+    else if(args[0] == "listpins"){
+      ioManager.printPcfPins();
+    }
+    else if(args[0] == "assignpin"){
+      int pin = args[2][0] - '0';
+      ioManager.assignPcfPin(args[1], pin);
+      Serial.printf("Completed pin assignment of %s to pin %d", args[1].c_str(), pin);
+    }
+    else if(args[0] == "readpcf"){
+      uint8_t in = ioManager.readAllPcfRaw();
+      uint8_t out = ioManager.getRawOutState();
+      Serial.printf("IN:  0x%.2X\nOUT: 0x%.2X\n", in, out);
+    }
+    else if(args[0] == "writepcf"){
+      int pin = args[1][0] - '0';
+      bool val = args[2][0] == '1';
+      Serial.printf("Setting pcf pin %d to %d\n", pin, val);
+      ioManager.writePcfPin(pin, val, true);
+    }
     else if(args[0] == "stopsend"){
       Serial.println("Aborting transfer");
       acm->abort();
+      ioManager.setupPins();
     }
     else{
       Serial.println("Unknown command");

@@ -15,6 +15,7 @@ struct MBServer{
     bool logWrites = true;
     
     void debugRead(const char* type, TRegister* reg, uint16_t val){
+        (void)val;
         if(logReads)
           Serial.printf("%s READ   0x%.4X = 0x%.4X\n", type, reg->address.address, reg->value);
     }
@@ -122,8 +123,8 @@ public:
         createAndBindIsts(QueueFullIstsOffset, QueueFullIsts);
         /// IREG
         createAndBindIreg(ExecutedCmdsIregOffset, ExecutedCmdsIreg);
-        
-        for(int i=0; i<CmdArgsCount+1; i++){
+
+        for(uint16_t i=0; i<CmdArgsCount+1; i++){
             CmdHReg[i] = mb.searchRegister(HREG(CmdHRegOffset + i));
         }
 
@@ -132,6 +133,7 @@ public:
             return true;
         });
         mb.onDisconnect([](IPAddress address){
+            (void)address;
             Serial.printf("Modbus Disconnect\n");
             return true;
         });

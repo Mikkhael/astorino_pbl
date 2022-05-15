@@ -1,16 +1,31 @@
 #pragma once
 #include <Wire.h>
 
+template<typename T>
+static void setbit(T& var, int pin, bool val){
+    if(val){
+      var |=  (1 << pin);
+    }else{
+      var &= ~(1 << pin);
+    }
+}
+
 struct IOManager{
 
-    static constexpr int CmdPinsCountMax = 4;
+    constexpr static int RobotToPcfPin(int robotPinNumber){
+      return 8 - (robotPinNumber % 1000);
+    }
+    constexpr static int PcfToRobotPin(int pcfPinNumber, bool isPcfOutput){
+      return (8 - pcfPinNumber) + isPcfOutput * 1000;
+    }
+    static constexpr int CmdPinsCountMax = 2;
     int CmdPinsCount = 2;
     bool usePcf         = true;
     bool invertedOutput = true;
     bool invertedInput  = true;
     
 // GPIO pins
-    int PinsCmd[CmdPinsCountMax] {D1, D2, D3, D4};
+    int PinsCmd[CmdPinsCountMax] {D1, D2};
     int PinSend = D0;
     int PinRobotIdle = D5;
     int PinRobotAck  = D6;
@@ -19,21 +34,23 @@ struct IOManager{
 
     // Output
     uint8_t outputAddress = 0x38;
-    //uint8_t PcfCmd[CmdPinsCountMax] {0, 1, 2, 3};
-    uint8_t PcfSend = 5;
+    uint8_t PcfSend = RobotToPcfPin(1008);
+    uint8_t PcfCmd[CmdPinsCountMax] = {
+        RobotToPcfPin(1001),
+        RobotToPcfPin(1002),
+    };
 
     uint8_t outState = 0xFF;
-    uint8_t cmdMask  = 0;
     
     // Input
     uint8_t inputAddress = 0x39;
-    uint8_t PcfRobotIdle = 0;
-    uint8_t PcfRobotAck  = 1;
+    uint8_t PcfRobotIdle =  RobotToPcfPin(1);
+    uint8_t PcfRobotAck  =  RobotToPcfPin(2);
 
     auto writeInv(uint8_t val){
       if(invertedOutput)
-        return Wire.write(~outState);
-      return Wire.write(outState);
+        return Wire.write(~val);
+      return Wire.write(val);
     }
     auto writeInvDigital(uint8_t pin, bool val){
       if(invertedOutput)
@@ -51,7 +68,9 @@ struct IOManager{
 
     bool setCmd(uint8_t cmd){
       if(usePcf){
-          outState = (outState & (~cmdMask)) | (cmd & cmdMask);
+        for(int i=0; i<CmdPinsCount; i++){
+          setbit(outState, PcfCmd[i], cmd & (1 << i));
+        }
         Wire.beginTransmission(outputAddress);
         writeInv(outState);
         auto res = Wire.endTransmission();
@@ -69,17 +88,23 @@ struct IOManager{
       return true;
     }
 
-    bool setSend(bool val){
-      if(usePcf){
-        bitWrite(outState, PcfSend, val);
+    int writePcfPin(uint8_t pin, bool val, bool raw = false){
+        bool toSet = (raw && invertedOutput) ? !val : val;
+        setbit(outState, pin, toSet);
         Wire.beginTransmission(outputAddress);
         writeInv(outState);
-        auto res = Wire.endTransmission();
+        return Wire.endTransmission();
+    }
+
+    bool setSend(bool val){
+      if(usePcf){
+        int res = writePcfPin(PcfSend, val);
         if(res){
-          Serial.print("ERROR PCF setSend: ");
+          Serial.print("ERROR PCF PinSend: ");
           Serial.println(res);
           return false;
         }
+        return true;
       }
       else{
         writeInvDigital(PinSend, val);
@@ -87,9 +112,25 @@ struct IOManager{
       return true;
     }
 
+    uint8_t getRawOutState(){
+      return invertedOutput ? ~outState : outState;
+    }
+
+    uint8_t readAllPcfRaw(){
+      auto res = Wire.requestFrom(inputAddress, uint8_t(1));
+      if(res != 1){
+        Serial.print("ERROR PCF read raw: ");
+        Serial.println(res);
+        return 0;
+      }
+      return Wire.read();
+    }
+
     bool readPcfBit(uint8_t pos){
+      static unsigned int errorDelay = 0;
        auto res = Wire.requestFrom(inputAddress, uint8_t(1));
-        if(res != 1){
+        if(res != 1 && errorDelay < millis()){
+          errorDelay = millis() + 5000;
           Serial.print("ERROR PCF read: ");
           Serial.println(res);
           return false;
@@ -115,11 +156,29 @@ struct IOManager{
       }
     }
 
+    void printPcfPins(){
+      Serial.println("Pcf -> Robot");
+      for(int i=0; i<CmdPinsCount; i++){
+        Serial.printf("[cmd%d] Cmd%d  -  %d (%d)\n", i, i, PcfCmd[i], PcfToRobotPin(PcfCmd[i], true));
+      }
+      Serial.printf("[send] Send  -  %d (%d)\n", PcfSend, PcfToRobotPin(PcfSend, true));
+      Serial.println("Robot -> Pcf");
+      Serial.printf("[idle] Idle  -  %d (%d)\n", PcfRobotIdle, PcfToRobotPin(PcfRobotIdle, false));
+      Serial.printf("[ack]  Ack   -  %d (%d)\n", PcfRobotAck, PcfToRobotPin(PcfRobotAck, false));
+    }
+    
+    void assignPcfPin(String name, int pcfPinNumber){
+      if (name.startsWith("cmd"))  PcfCmd[name[3] - '0'] = pcfPinNumber;
+      else if(name == "send") PcfSend      = pcfPinNumber;
+      else if(name == "idle") PcfRobotIdle = pcfPinNumber;
+      else if(name == "ack")  PcfRobotAck  = pcfPinNumber;
+      else Serial.println("Unknown port name");
+      setupPins();
+    }
 
     bool setupPins(){
       if(usePcf){
         Wire.begin(SDA, SCL);
-        cmdMask = (uint8_t(0x01) << CmdPinsCount) - 1;
         outState = 0;
         Wire.beginTransmission(outputAddress);
         writeInv(outState);
