@@ -41,7 +41,7 @@ function sendJpeg(){
     return true;
 }
 
-const sendInterval = 5000; // Sending interval (in milliseconds)
+const sendInterval = 500; // Sending interval (in milliseconds)
 setInterval(() => { // Perform the image sending repeatidly
     drawRandomRectangle();
     sendJpeg();

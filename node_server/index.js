@@ -3,7 +3,7 @@
 const express = require("express"); // HTTP server
 const WebSocket = require("ws"); // WebSocket (asynchronous client-server communication)
 const fs = require("fs"); // FileSystem library, for testing
-const mqtt = require("mqtt"); // MTT library
+const mqtt = require("mqtt"); // MQTT library
 
 
 // Config
