@@ -17,49 +17,41 @@
 
 	const cameraImage = document.getElementById("camera_image"); // Reference to the HTMLImage object
 
+	const mqtt_user = "user";
+	const mqtt_pass = "password";
 	const mqtt_port = 8080;
 	const mqtt_id   = "mqttws_" + Math.floor(Math.random() * 10000000); // Generating a random mqtt client id
-	
 	
 	const mqtt_url = `ws://${location.hostname}:${mqtt_port}/mqtt`; // Create a URL for MQTT over WebSockets
 	const mqttClient = new Paho.MQTT.Client(mqtt_url, mqtt_id);
 
-// TODO
-	
-	ws.onopen = (event) => {
-		console.log("WS Connection Opened.");
-	};
-	ws.onclose = (event) => {
-		console.log("WS Connection Closed.");
-	}
-	ws.onerror = (event) => {
-		console.error("WS Error: ", event);
-	}
-	ws.onmessage = (event) => {
-		const message_str = event.data; // Get the received message
-		const message = JSON.parse(message_str) // Convert the string back to the sent object
-		console.log(`Received message of type ${message.type}`);
-		handleMessage(message);
-	}
-
-
-	// Converting from a string (received from a WS message) to an arrau of bytes
-	function biaryStringToBuffer(string){
-		const res = new Uint8Array(string.length);
-		for(let i=0; i<string.length; i++){
-			res[i] = string.charCodeAt(i);
+	mqttClient.connect({
+		userName: mqtt_user,
+		password: mqtt_pass,
+		onSuccess: () => {
+			console.log("[MQTT] Connection Success");
+			mqttClient.subscribe("img/jpeg");
+			mqttClient.subscribe("test");
+		},
+		onFailure: (err) => {
+			console.error("[MQTT] Connection Failed", err);
 		}
-		return res;
+	});
+	mqttClient.onConnectionLost = (err) => {
+		console.error("[MQTT] Disconnected", err);
 	}
-
-	function handleMessage(message){
-		if(message.type == "img"){
-			imageData = new Blob([biaryStringToBuffer(message.data)]) // Convert the image data from the string to a Blob (unmutable bytes sequence
-			replaceImage(imageData); // Replace the image
+	mqttClient.onMessageArrived = (message) => {
+		const topic = message.destinationName;
+		if(topic == "test"){
+			console.log("Received test message:", message.payloadString);
+		}else if(topic == "img/jpeg"){
+			console.log("Received new image");
+			replaceImage(new Blob([message.payloadBytes]));
 		}else{
-			console.error("Unhandled message type: ", message);
+			console.log(`Unhandled topic:`, topic);
 		}
 	}
+
 
 	let currentImageDataUrl = null; // Last bounded URL to the image data Blob
 	function replaceImage(newImageData){
