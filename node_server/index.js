@@ -9,7 +9,7 @@ const mqtt = require("mqtt"); // MTT library
 // Config
 const mqtt_user = "user";
 const mqtt_pass = "password";
-const mqtt_addr = "locahost";
+const mqtt_addr = "localhost";
 const mqtt_port = 1883;
 
 const http_port = 80;
@@ -25,7 +25,7 @@ const mqtt_topics = [
 ];
 
 // Creating a connection
-const mqtt_brokerurl = `mqtt:/${mqtt_addr}:${mqtt_port}`; // Make the URL to connect to
+const mqtt_brokerurl = `mqtt://${mqtt_addr}:${mqtt_port}`; // Make the URL to connect to
 const mqttClient = mqtt.connect(mqtt_brokerurl, { // Connect with specified username and password
   username: mqtt_user,
   password: mqtt_pass,

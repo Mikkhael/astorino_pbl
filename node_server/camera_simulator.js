@@ -4,7 +4,7 @@ const mqtt = require("mqtt");
 const fs = require("fs");
 
 // Connect to MQTT broker
-const mqttClient = mqtt.connect("mqtt:/localhost:1883", {
+const mqttClient = mqtt.connect("mqtt://localhost:1883", {
     username: "user",
     password: "password"
 });

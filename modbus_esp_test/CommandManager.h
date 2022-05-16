@@ -122,7 +122,7 @@ struct CommandManager
       msg.parts[1] = args[2].toInt();
       msg.parts[2] = args[3].toInt();
       Serial.printf("Premaring command: %d %d %d", msg.parts[0], msg.parts[1], msg.parts[2]);
-      acm->enqueueCommand(msg);
+      acm->enqueueCommand(msg, true);
     }
     else if(args[0] == "cmdpins"){
       int val = args[1].toInt();
