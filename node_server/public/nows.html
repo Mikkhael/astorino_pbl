@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Test Mqtt</title>
+	<!-- Includeing the library -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+</head>
+<body>
+	
+	<img src="" alt="" id="camera_image">
+
+
+<script>
+
+	const cameraImage = document.getElementById("camera_image"); // Reference to the HTMLImage object
+
+	const mqtt_port = 8080;
+	const mqtt_id   = "mqttws_" + Math.floor(Math.random() * 10000000); // Generating a random mqtt client id
+	
+	
+	const mqtt_url = `ws://${location.hostname}:${mqtt_port}/mqtt`; // Create a URL for MQTT over WebSockets
+	const mqttClient = new Paho.MQTT.Client(mqtt_url, mqtt_id);
+
+// TODO
+	
+	ws.onopen = (event) => {
+		console.log("WS Connection Opened.");
+	};
+	ws.onclose = (event) => {
+		console.log("WS Connection Closed.");
+	}
+	ws.onerror = (event) => {
+		console.error("WS Error: ", event);
+	}
+	ws.onmessage = (event) => {
+		const message_str = event.data; // Get the received message
+		const message = JSON.parse(message_str) // Convert the string back to the sent object
+		console.log(`Received message of type ${message.type}`);
+		handleMessage(message);
+	}
+
+
+	// Converting from a string (received from a WS message) to an arrau of bytes
+	function biaryStringToBuffer(string){
+		const res = new Uint8Array(string.length);
+		for(let i=0; i<string.length; i++){
+			res[i] = string.charCodeAt(i);
+		}
+		return res;
+	}
+
+	function handleMessage(message){
+		if(message.type == "img"){
+			imageData = new Blob([biaryStringToBuffer(message.data)]) // Convert the image data from the string to a Blob (unmutable bytes sequence
+			replaceImage(imageData); // Replace the image
+		}else{
+			console.error("Unhandled message type: ", message);
+		}
+	}
+
+	let currentImageDataUrl = null; // Last bounded URL to the image data Blob
+	function replaceImage(newImageData){
+		if(currentImageDataUrl){ // Check if image is already bound to a Blob
+			URL.revokeObjectURL(currentImageDataUrl); // Free the memory from the old Blob
+		}
+		currentImageDataUrl = URL.createObjectURL(newImageData) // Bind new Blob to an URL
+		cameraImage.src = currentImageDataUrl // Set the image URL to the new Blob
+	}
+
+</script>
+
+</body>
+</html>
