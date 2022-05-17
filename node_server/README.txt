@@ -20,3 +20,19 @@ Po uruchomieniu, można otworzyć interfejs urzytkownika wpisując w przeglądar
 Uruchomianie symulatora kamery:
 > node camera_simulator.js
 
+Konfiguracja Mosquitto:
+Przy instalacji, jeśli nie odznaczyiście instalacji usługi windowsowej, to mosquitto startuje za każdym uruchomieniem komputera automatycznie.
+Aby to wyłączyć należy (w folderze gdzie jest zainstalowany) wykonać:
+> mosquitto uninstall
+Należy stworzyć plik z hasłami (jak instalowaliście w C:/ProgramFiles to trzeba uruchomić cmd jako admin):
+> mosquitto_passwd -c -b passwd.txt user password
+W notatniku otworzyć plik konfituracyjny, nazwać go np. config.txt. Zawartość config.txt:
+=== Od tąd ===
+password_file passwd.txt
+listener 1883
+protocol mqtt
+listener 8080
+protocol websockets
+=== Do tąd ===
+Uruchamianie mosquitto:
+> mosquitto -v -c config.txt
