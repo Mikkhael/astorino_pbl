@@ -4,6 +4,10 @@ const mqtt_pass = "password";
 const mqtt_port = 8080;
 const mqtt_id   = "mqttws_" + Math.floor(Math.random() * 10000000); // Generating a random mqtt client id
 
+if(location.hostname.match(/^(?:\d{1,3}\.){3}\d{1,3}$/)){
+    alert(`You cannot connect to MQTT over WebSockets with ipv4 address (${location.hostname}). Use ipv6 or a domain name.`);
+}
+
 const mqtt_url = `ws://${location.hostname}:${mqtt_port}/mqtt`; // Create a URL for MQTT over WebSockets
 
 

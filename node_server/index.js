@@ -7,12 +7,21 @@ const mqtt = require("mqtt"); // MQTT library
 
 
 // Config
-const mqtt_user = "user";
-const mqtt_pass = "password";
-const mqtt_addr = "localhost";
-const mqtt_port = 1883;
 
-const http_port = 80;
+let Config = {};
+try{
+  Config = require("./config.js");
+}catch(err){
+  console.error("You are missing config.js file. Reffer to README.txt");
+  // Default config:
+  Config = {
+    mqtt_user: "user",
+    mqtt_pass: "password",
+    mqtt_addr: "localhost",
+    mqtt_port: 1883,
+    http_port: 80,
+  };
+}
 
 
 
@@ -25,10 +34,10 @@ const mqtt_topics = [
 ];
 
 // Creating a connection
-const mqtt_brokerurl = `mqtt://${mqtt_addr}:${mqtt_port}`; // Make the URL to connect to
+const mqtt_brokerurl = `mqtt://${Config.mqtt_addr}:${Config.mqtt_port}`; // Make the URL to connect to
 const mqttClient = mqtt.connect(mqtt_brokerurl, { // Connect with specified username and password
-  username: mqtt_user,
-  password: mqtt_pass,
+  username: Config.mqtt_user,
+  password: Config.mqtt_pass,
 });
 
 // MQTT events
@@ -59,8 +68,8 @@ const app = express(); // Creating the HTTP server
 app.use('/', express.static('public')); // Serving the contents of "public" as a website
 
 // Starting the HTTP server
-const http_server = app.listen(http_port, () => {
-  console.log(`[HTTP] Listening on port ${http_port}`);
+const http_server = app.listen(Config.http_port, () => {
+  console.log(`[HTTP] Listening on port ${Config.http_port}`);
 });
 
 ////////////////////////// WebSockets ////////////////////////
