@@ -99,7 +99,8 @@ wss.on("error", (err) => {
 
 ////////////////////////// Functions ////////////////////////
 
-const CropSize = 8;
+// Size of the cropped area of the image to analyse
+const cropSize = 8;
 
 /**
  * @param {string} topic 
@@ -112,23 +113,23 @@ function handleMqttMessage(topic, payload){
   }else if(topic == "img/jpeg"){
     console.log("Received image.");
     broadcastNewImage(payload);
-    const [avg, div] = analyseImage(payload, CropSize);
-    updateCurrentlySeenColor(avg, div, CropSize);
+    const [avg, dev] = analyseImage(payload, cropSize);
+    broadcastImageAnalysis(avg, dev, cropSize);
 
   }else{
     console.error(`Unhandled topic: `, topic);
   }
 }
 
-
-function updateCurrentlySeenColor(avg, div, cropSize){
-  const payload = {
-    avg, div, cropSize
+function broadcastImageAnalysis(avg, dev, cropSize){
+  const payload = { // Create an object with image analysis results
+    avg, dev, cropSize
   };
-  const payload_str = JSON.stringify(payload);
-  mqttClient.publish("analysis", payload_str);
+  const payload_str = JSON.stringify(payload); // Convert the object to a string
+  mqttClient.publish("analysis", payload_str); // Publish the message
 }
 
+// Canvas for image processing
 const Width = 320;
 const Height = 240;
 const cameraImageCanvas = canvas.createCanvas(Width, Height);
@@ -137,34 +138,30 @@ const ctx = cameraImageCanvas.getContext("2d");
 
 /**
  * @param {Buffer} jpegBytes 
+ * @param {number} cropSize
  */
-function analyseImage(jpegBytes, CropSize){
+function analyseImage(jpegBytes, cropSize){
+  // Convert jpegBytes to an Image
   const img = new canvas.Image();
   img.src = jpegBytes;
+  // Draw the image on canvas and extract pixels
   ctx.drawImage(img, 0,0, Width, Height);
-  //const buf = cameraImageCanvas.toBuffer();
-  //fs.writeFileSync("test.jpg", buf);
-  const pixels = ctx.getImageData(Width/2-CropSize, Height/2-CropSize, CropSize*2, CropSize*2);
-  const avg = [0,0,0];
-  for(let i=0; i<pixels.data.length; i+=4){
-    for(let j=0; j<3; j++){
-      avg[j] += pixels.data[i+j];
+  const pixels = ctx.getImageData(Width/2-cropSize, Height/2-cropSize, cropSize*2, cropSize*2).data; // Creatting a cropped out square at the center
+  // Analyse pixel data
+  const avg = [0,0,0]; // Average pixel color of the cropped section
+  const dev = [0,0,0]; // Standard deviation of pixel colors
+  for(let pixel_i=0; pixel_i < pixels.length; pixel_i += 4){ // Iterate over all pixels (RGBA)
+    for(let channel=0; channel<3; channel++){ // Iterate over all channels
+      avg[channel] += pixels[pixel_i+channel];
+      dev[channel] += pixels[pixel_i+channel]**2;
     }
   }
-  for(let j=0; j<3; j++){
-    avg[j] /= (pixels.data.length / 4);
+  for(let channel=0; channel<3; channel++){ // Calculate final values
+    avg[channel] /= pixels.length / 4;
+    dev[channel] /= pixels.length / 4;
+    dev[channel] -= avg[channel]**2;
   }
-  const div = [0,0,0];
-  for(let i=0; i<pixels.data.length; i+=4){
-    for(let j=0; j<3; j++){
-      div[j] += (pixels.data[i+j] - avg[j])**2;
-    }
-  }
-  for(let j=0; j<3; j++){
-    div[j] /= (pixels.data.length / 4);
-    div[j] = Math.sqrt(div[j]);
-  }
-  return [avg, div];
+  return [avg, dev];
 }
 
 /**

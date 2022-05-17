@@ -6,7 +6,7 @@
 const cameraImage = document.querySelector("#camera_image"); // Reference to the HTMLImage object
 
 const avgElement = document.querySelector("#avg");
-const divElement = document.querySelector("#div");
+const devElement = document.querySelector("#dev");
 const cropSizeElement = document.querySelector("#cropSize");
 /**@type {HTMLElement} */
 const avgColorElement = document.querySelector("#avgColor");
@@ -23,7 +23,7 @@ function replaceImage(newImageData){
 
 function updateImageAnalysis(data){
     avgElement.innerHTML = data.avg;
-    divElement.innerHTML = data.div;
+    devElement.innerHTML = data.dev;
     cropSizeElement.innerHTML = data.cropSize;
     avgColorElement.style.backgroundColor = `rgb(${Math.floor(data.avg[0])}, ${Math.floor(data.avg[1])}, ${Math.floor(data.avg[2])})`
 }
