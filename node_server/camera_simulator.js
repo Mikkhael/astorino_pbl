@@ -2,11 +2,12 @@
 const canvas = require("canvas");
 const mqtt = require("mqtt");
 const fs = require("fs");
+const Config = require("./config.js");
 
 // Connect to MQTT broker
-const mqttClient = mqtt.connect("mqtt://localhost:1883", {
-    username: "user",
-    password: "password"
+const mqttClient = mqtt.connect(`mqtt://${Config.mqtt_addr}:${Config.mqtt_port}`, {
+    username: Config.mqtt_user,
+    password: Config.mqtt_pass
 });
 mqttClient.on("error", (err) => console.log("MQTT", err));
 mqttClient.on("connect", () => console.log("MQTT Connected."));
