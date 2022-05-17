@@ -37,6 +37,8 @@ function updateImageAnalysis(data){
  *  asBytes: () => Uint8Array
  * }} payload 
  */
+
+
 function handleMqttMessage(topic, payload){
     if(topic == "test"){
         console.log("Received test message:", payload.asString());
