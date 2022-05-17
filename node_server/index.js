@@ -4,6 +4,7 @@ const express = require("express"); // HTTP server
 const WebSocket = require("ws"); // WebSocket (asynchronous client-server communication)
 const fs = require("fs"); // FileSystem library, for testing
 const mqtt = require("mqtt"); // MQTT library
+const canvas = require("canvas");
 
 
 // Config
@@ -98,6 +99,8 @@ wss.on("error", (err) => {
 
 ////////////////////////// Functions ////////////////////////
 
+const CropSize = 8;
+
 /**
  * @param {string} topic 
  * @param {Buffer} payload 
@@ -109,10 +112,59 @@ function handleMqttMessage(topic, payload){
   }else if(topic == "img/jpeg"){
     console.log("Received image.");
     broadcastNewImage(payload);
+    const [avg, div] = analyseImage(payload, CropSize);
+    updateCurrentlySeenColor(avg, div, CropSize);
+
   }else{
     console.error(`Unhandled topic: `, topic);
   }
+}
 
+
+function updateCurrentlySeenColor(avg, div, cropSize){
+  const payload = {
+    avg, div, cropSize
+  };
+  const payload_str = JSON.stringify(payload);
+  mqttClient.publish("analysis", payload_str);
+}
+
+const Width = 320;
+const Height = 240;
+const cameraImageCanvas = canvas.createCanvas(Width, Height);
+const ctx = cameraImageCanvas.getContext("2d");
+
+
+/**
+ * @param {Buffer} jpegBytes 
+ */
+function analyseImage(jpegBytes, CropSize){
+  const img = new canvas.Image();
+  img.src = jpegBytes;
+  ctx.drawImage(img, 0,0, Width, Height);
+  //const buf = cameraImageCanvas.toBuffer();
+  //fs.writeFileSync("test.jpg", buf);
+  const pixels = ctx.getImageData(Width/2-CropSize, Height/2-CropSize, CropSize*2, CropSize*2);
+  const avg = [0,0,0];
+  for(let i=0; i<pixels.data.length; i+=4){
+    for(let j=0; j<3; j++){
+      avg[j] += pixels.data[i+j];
+    }
+  }
+  for(let j=0; j<3; j++){
+    avg[j] /= (pixels.data.length / 4);
+  }
+  const div = [0,0,0];
+  for(let i=0; i<pixels.data.length; i+=4){
+    for(let j=0; j<3; j++){
+      div[j] += (pixels.data[i+j] - avg[j])**2;
+    }
+  }
+  for(let j=0; j<3; j++){
+    div[j] /= (pixels.data.length / 4);
+    div[j] = Math.sqrt(div[j]);
+  }
+  return [avg, div];
 }
 
 /**

@@ -5,6 +5,12 @@
 /**@type {HTMLImageElement} */
 const cameraImage = document.querySelector("#camera_image"); // Reference to the HTMLImage object
 
+const avgElement = document.querySelector("#avg");
+const divElement = document.querySelector("#div");
+const cropSizeElement = document.querySelector("#cropSize");
+/**@type {HTMLElement} */
+const avgColorElement = document.querySelector("#avgColor");
+
 let currentImageDataUrl = null; // Last bounded URL to the image data Blob
 /**@param {Blob} newImageData */
 function replaceImage(newImageData){
@@ -13,6 +19,13 @@ function replaceImage(newImageData){
     }
     currentImageDataUrl = URL.createObjectURL(newImageData) // Bind new Blob to an URL
     cameraImage.src = currentImageDataUrl // Set the image URL to the new Blob
+}
+
+function updateImageAnalysis(data){
+    avgElement.innerHTML = data.avg;
+    divElement.innerHTML = data.div;
+    cropSizeElement.innerHTML = data.cropSize;
+    avgColorElement.style.backgroundColor = `rgb(${Math.floor(data.avg[0])}, ${Math.floor(data.avg[1])}, ${Math.floor(data.avg[2])})`
 }
 
 ////////////////// MQTT //////////////////////////
@@ -30,6 +43,9 @@ function handleMqttMessage(topic, payload){
     }else if(topic == "img/jpeg"){
         console.log("Received new image");
         replaceImage(new Blob([payload.asBytes()]));
+    }else if(topic == "analysis"){
+        const data = JSON.parse(payload.asString());
+        updateImageAnalysis(data);
     }else{
         console.log(`Unhandled topic:`, topic);
     }

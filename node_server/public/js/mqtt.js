@@ -26,6 +26,7 @@ function MQTT_createClientAndConnect(){
             console.log("[MQTT] Connection Success");
             mqttClient.subscribe("img/jpeg");
             mqttClient.subscribe("test");
+            mqttClient.subscribe("analysis");
         },
         onFailure: (err) => {
             console.error("[MQTT] Connection Failed", err);
