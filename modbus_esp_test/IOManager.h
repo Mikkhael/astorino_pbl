@@ -21,7 +21,7 @@ struct IOManager{
     static constexpr int CmdPinsCountMax = 2;
     int CmdPinsCount = 2;
     bool usePcf         = true;
-    bool invertedOutput = true;
+    bool invertedOutput = false;
     bool invertedInput  = true;
     
 // GPIO pins
