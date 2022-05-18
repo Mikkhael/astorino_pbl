@@ -19,10 +19,12 @@ const char* HELP_STR =
 "mode (single|adv|alt) - set cmd sending mode\n"
 "word size             - set cmd word size (in bits)\n"
 "usepcf (0|1)          - set wheather using PCF\n"
-"listpins              - shows currently assigned pcf pins\n"
+"list                  - shows currently assigned pcf pins\n"
 "assignpin name pin    - assigns a pcf pin to a name\n"
 "r                     - reads all pcf pins\n"
 "w pin (0|1)           - sets output pcf pin\n"
+"dr                    - read dedicated i/o pins\n"
+"dw name (0|1)         - sets dedicated output pin\n"
 "stopsend              - aborts sending cmd\n"
 "=====";
 
@@ -173,7 +175,7 @@ struct CommandManager
       ioManager.usePcf = val;
       ioManager.setupPins();
     }
-    else if(args[0] == "listpins"){
+    else if(args[0] == "list"){
       ioManager.printPcfPins();
     }
     else if(args[0] == "assignpin"){
@@ -197,6 +199,48 @@ struct CommandManager
       bool val = args[2][0] == '1';
       Serial.printf("Setting pcf pin %d to %d\n", pin, val);
       ioManager.writePcfPin(pin, val, true);
+    }
+    else if(args[0] == "dr"){
+      Serial.println("=== Outputs ===");
+      for(int i=0; i<DIOMap::PinsCount; i++){
+        int function_int = ioManager.dedicatedOutputs.pcfPinToFunctionMap[i];
+        if(function_int != -1){
+          DIOMap::Function function = static_cast<DIOMap::Function>(function_int);
+          DIOMap::printFunction(function);
+          Serial.printf("\t %d (%d) = %d\n", i, IOManager::PcfToRobotPin(i, true), (ioManager.outState & (1 << i)) != 0);
+        }
+      }
+      Serial.println("=== Inputs ===");
+      for(int i=0; i<DIOMap::PinsCount; i++){
+        int function_int = ioManager.dedicatedInputs.pcfPinToFunctionMap[i];
+        if(function_int != -1){
+          DIOMap::Function function = static_cast<DIOMap::Function>(function_int);
+          DIOMap::printFunction(function);
+          Serial.printf("\t %d (%d) = %d\n", i, IOManager::PcfToRobotPin(i, false), ioManager.readPcfBit(i));
+        }
+      }
+      Serial.println("===========");
+    }
+    else if(args[0] == "dw"){
+      bool invalid = true;
+      for(int i=0; i<DIOMap::OutFunctionsCount && invalid; i++){
+        DIOMap::Function function = static_cast<DIOMap::Function>(i);
+        String name = DIOMap::getFunctionName(function);
+        if(args[1] == name){
+          invalid = false;
+          int pcfPin = ioManager.dedicatedOutputs.functionToPcfPinMap[i];
+          if(pcfPin == -1){
+            Serial.printf("Function %s has no assigned pin\n", name.c_str());
+          }else{
+            bool value = args[2][0] == '1';
+            Serial.printf("Setting %s (pcf %d (%d)) to %d\n", name.c_str(), pcfPin, IOManager::PcfToRobotPin(pcfPin, true), value);
+            ioManager.setDio(function, value);
+          }
+        }
+      }
+      if(invalid){
+        Serial.printf("Function named %s does not exist\n", args[1].c_str());
+      }
     }
     else if(args[0] == "stopsend"){
       Serial.println("Aborting transfer\n");

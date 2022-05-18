@@ -10,6 +10,44 @@ static void setbit(T& var, int pin, bool val){
     }
 }
 
+struct DIOMap{
+  constexpr static int PinsCount = 8;
+  constexpr static int OutFunctionsCount = 8;
+  constexpr static int FunctionsCount  = 18;
+  enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt,
+                             ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed};
+  constexpr static char* FunctionNames[FunctionsCount] {
+    "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
+    "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed"};
+  static_assert(static_cast<int>(Function::OMotorOn) == 0);
+  static_assert(static_cast<int>(Function::IZeroed) == 17);
+  
+  int pcfPinToFunctionMap[PinsCount];
+  int functionToPcfPinMap[FunctionsCount];
+
+  static constexpr char* getFunctionName(Function function){
+    return FunctionNames[static_cast<int>(function)];
+  }
+  static void printFunction(Function function){
+    Serial.print(getFunctionName(function));
+  }
+
+  DIOMap(){
+    for(int i=0; i<PinsCount; i++){
+      pcfPinToFunctionMap[i] = -1;
+    }
+    for(int i=0; i<FunctionsCount; i++){
+      functionToPcfPinMap[i] = -1;
+    }
+  }
+
+  void assignFunctionToPcfPin(Function function, int pcfPin){
+    int functionInt = static_cast<int>(function);
+    functionToPcfPinMap[functionInt] = pcfPin;
+    pcfPinToFunctionMap[pcfPin] = functionInt;
+  }
+};
+
 struct IOManager{
 
     constexpr static int RobotToPcfPin(int robotPinNumber){
@@ -39,6 +77,7 @@ struct IOManager{
         RobotToPcfPin(1001),
         RobotToPcfPin(1002),
     };
+    DIOMap dedicatedOutputs;
 
     uint8_t outState = 0xFF;
     
@@ -46,6 +85,36 @@ struct IOManager{
     uint8_t inputAddress = 0x39;
     uint8_t PcfRobotIdle =  RobotToPcfPin(1);
     uint8_t PcfRobotAck  =  RobotToPcfPin(2);
+    DIOMap dedicatedInputs;
+
+    IOManager(){
+      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OMotorOn, RobotToPcfPin(1003));
+      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OZeroing, RobotToPcfPin(1004));
+      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OReset,   RobotToPcfPin(1005));
+
+      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IError, RobotToPcfPin(7));
+    }
+
+    bool setDio(DIOMap::Function function, bool value){
+      int pcfPin = dedicatedOutputs.functionToPcfPinMap[static_cast<int>(function)];
+      if(pcfPin == -1){
+        Serial.print("Pin for function ");
+        DIOMap::printFunction(function);
+        Serial.println(" is not assigned");
+        return false;
+      }
+      return writePcfPin(pcfPin, value);
+    }
+    bool getDio(DIOMap::Function function, bool& valueOut){
+      int pcfPin = dedicatedInputs.functionToPcfPinMap[static_cast<int>(function)];
+      if(pcfPin == -1){
+        Serial.print("Pin for function ");
+        DIOMap::printFunction(function);
+        Serial.println(" is not assigned");
+        return false;
+      }
+      return readPcfBit(pcfPin);
+    }
 
     auto writeInv(){
       if(invertedOutput)
