@@ -47,10 +47,10 @@ struct IOManager{
     uint8_t PcfRobotIdle =  RobotToPcfPin(1);
     uint8_t PcfRobotAck  =  RobotToPcfPin(2);
 
-    auto writeInv(uint8_t val){
+    auto writeInv(){
       if(invertedOutput)
-        return Wire.write(~val);
-      return Wire.write(val);
+        return Wire.write(~outState);
+      return Wire.write(outState);
     }
     auto writeInvDigital(uint8_t pin, bool val){
       if(invertedOutput)
@@ -72,7 +72,7 @@ struct IOManager{
           setbit(outState, PcfCmd[i], cmd & (1 << i));
         }
         Wire.beginTransmission(outputAddress);
-        writeInv(outState);
+        writeInv();
         auto res = Wire.endTransmission();
         if(res){
           Serial.print("ERROR PCF setCmd: ");
@@ -92,7 +92,7 @@ struct IOManager{
         bool toSet = (raw && invertedOutput) ? !val : val;
         setbit(outState, pin, toSet);
         Wire.beginTransmission(outputAddress);
-        writeInv(outState);
+        writeInv();
         return Wire.endTransmission();
     }
 
@@ -175,13 +175,25 @@ struct IOManager{
       else Serial.println("Unknown port name");
       setupPins();
     }
-
+    bool refreshOutState(){
+      static unsigned int errorDelay = 0;
+      Wire.beginTransmission(outputAddress);
+      writeInv();
+      auto res = Wire.endTransmission();
+      if(res != 0 && errorDelay < millis()){
+        errorDelay = millis() + 5000;
+        Serial.print("ERROR PCF write: ");
+        Serial.println(res);
+        return false;
+      }
+      return true;
+    }
     bool setupPins(){
       if(usePcf){
         Wire.begin(SDA, SCL);
         outState = 0;
         Wire.beginTransmission(outputAddress);
-        writeInv(outState);
+        writeInv();
         auto resOut = Wire.endTransmission();
         Wire.beginTransmission(inputAddress);
         Wire.write(0xFF);

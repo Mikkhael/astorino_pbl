@@ -21,8 +21,8 @@ const char* HELP_STR =
 "usepcf (0|1)          - set wheather using PCF\n"
 "listpins              - shows currently assigned pcf pins\n"
 "assignpin name pin    - assigns a pcf pin to a name\n"
-"readpcf               - reads all pcf pins\n"
-"writepcf pin (0|1)    - sets output pcf pin\n"
+"r                     - reads all pcf pins\n"
+"w pin (0|1)           - sets output pcf pin\n"
 "stopsend              - aborts sending cmd\n"
 "=====";
 
@@ -169,7 +169,7 @@ struct CommandManager
     }
     else if(args[0] == "usepcf"){
       bool val = args[1][0] != '0';
-      Serial.printf("Setting Use PCF to %d", val);
+      Serial.printf("Setting Use PCF to %d\n", val);
       ioManager.usePcf = val;
       ioManager.setupPins();
     }
@@ -179,21 +179,27 @@ struct CommandManager
     else if(args[0] == "assignpin"){
       int pin = args[2][0] - '0';
       ioManager.assignPcfPin(args[1], pin);
-      Serial.printf("Completed pin assignment of %s to pin %d", args[1].c_str(), pin);
+      Serial.printf("Completed pin assignment of %s to pin %d\n", args[1].c_str(), pin);
     }
-    else if(args[0] == "readpcf"){
+    else if(args[0] == "r"){
       uint8_t in = ioManager.readAllPcfRaw();
       uint8_t out = ioManager.getRawOutState();
-      Serial.printf("IN:  0x%.2X\nOUT: 0x%.2X\n", in, out);
+      Serial.print("IN:  ");
+      Serial.println(in, BIN);
+      Serial.print("OUT: ");
+      Serial.println(out, BIN);
     }
-    else if(args[0] == "writepcf"){
+    else if(args[0] == "w"){
       int pin = args[1][0] - '0';
+      if(args[1].length() == 4){
+        pin = IOManager::RobotToPcfPin(args[1][3] - '0');
+      }
       bool val = args[2][0] == '1';
       Serial.printf("Setting pcf pin %d to %d\n", pin, val);
       ioManager.writePcfPin(pin, val, true);
     }
     else if(args[0] == "stopsend"){
-      Serial.println("Aborting transfer");
+      Serial.println("Aborting transfer\n");
       acm->abort();
       ioManager.setupPins();
     }
