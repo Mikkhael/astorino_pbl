@@ -84,7 +84,7 @@ void setup() {
  
 void loop() {
 
-  ioManager.refreshOutState();
+  ioManager.refreshOutState(false);
   cmd.loop();
   mbserver.loop();
   acm.loop();

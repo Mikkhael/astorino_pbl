@@ -107,7 +107,7 @@ public:
     }
     
     void loop(){
-        robotIdle = ioManager.readIdle();
+        robotIdle = ioManager.readIdle(false);
         if(awaitForIdle && robotIdle){
           awaitForIdle = false;
           if(wasLastMessageDebug){
