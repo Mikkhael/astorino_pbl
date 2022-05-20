@@ -19,18 +19,18 @@ void printBinaryUint8(uint8_t val){
 class DIOMap{
   constexpr static int PinsCount = 8;
   constexpr static int OutFunctionsCount = 11;
-  constexpr static int FunctionsCount  = 23;
+  constexpr static int FunctionsCount  = 24;
 public:
   enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt, // 8 DIO
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
-                              IIdle, IAck,                                                                      // 2 Custom
+                              IIdle, IAck, IGrab,                                                                // 3 Custom
                              NONE};
   constexpr static char* FunctionNames[FunctionsCount+1] {
     "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
     "Send", "Cmd1", "Cmd2",
     "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
-    "Idle", "Ack",
+    "Idle", "Ack",  "Grab",
     "NONE"};
 private:
   static_assert(static_cast<int>(Function::OMotorOn) == 0);
@@ -93,10 +93,14 @@ struct IOManager{
     bool invertedInput  = true;
     
 // GPIO pins
+    /*
     int PinsCmd[CmdPinsCountMax] {D1, D2};
     int PinSend = D0;
     int PinRobotIdle = D5;
     int PinRobotAck  = D6;
+    */
+
+    int PinGrabber = D4;
 
 // PCF pins
 
@@ -109,6 +113,8 @@ struct IOManager{
     // Input
     uint8_t inputAddress = 0x39;
     DIOMap dedicatedInputs;
+
+
 
     IOManager(){
       dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OMotorOn, RobotToPcfPin(1003));
@@ -123,6 +129,7 @@ struct IOManager{
 
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IIdle, RobotToPcfPin(1));
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IAck,  RobotToPcfPin(2));
+      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IGrab, RobotToPcfPin(3));
       
     }
 
@@ -189,14 +196,20 @@ struct IOManager{
       return invertedOutput ? ~outState : outState;
     }
     
-    uint8_t readPcfAll(bool raw = false, bool noDelayError = true){
+    uint8_t readPcfAll(bool raw = false, bool noDelayError = true, bool* wasSuccess = NULL){
       static unsigned int errorDelay = 0;
       auto res = Wire.requestFrom(inputAddress, uint8_t(1));
       if(res != 1 && (noDelayError || errorDelay < millis())){
         errorDelay = millis() + 5000;
         Serial.print("ERROR PCF read: ");
         Serial.println(res);
+        if(wasSuccess){
+          *wasSuccess = false;
+        }
         return 0;
+      }
+      if(wasSuccess){
+        *wasSuccess = true;
       }
       return (raw || !invertedInput) ? Wire.read() : ~Wire.read();
     }
@@ -207,47 +220,28 @@ struct IOManager{
     }
 
     bool setCmd(uint8_t cmd){
-      if(usePcf){
-        setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd1), cmd & 0x01);
-        if(CmdPinsCount >= 2)
-          setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd2), cmd & 0x02);
-        return refreshOutState();
-      }
-      else{
-        for(int i=0; i<CmdPinsCount; i++){
-          writeInvDigital(PinsCmd[i], cmd & (1 << i));
-        }
-      }
-      return true;
+      setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd1), cmd & 0x01);
+      if(CmdPinsCount >= 2)
+        setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd2), cmd & 0x02);
+      return refreshOutState();
     }
 
     bool setSend(bool val){
-      if(usePcf){
-        return writePcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::OSend), val);
-      }
-      else{
-        writeInvDigital(PinSend, val);
-      }
-      return true;
+      return writePcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::OSend), val);
     }
 
     bool readIdle(bool noDelayError = true){
-      if(usePcf){
-       return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IIdle), noDelayError);
-      }
-      else{
-        return readInvDigital(PinRobotIdle);
-      }
+      return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IIdle), noDelayError);
     }
     
     bool readAck(bool noDelayError = true){
-      if(usePcf){
-       return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IAck), noDelayError);
-      }
-      else{
-        return readInvDigital(PinRobotAck);
-      }
+      return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IAck), noDelayError);
     }
+    
+    bool getGrab(bool noDelayError = true){
+      return readPcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::IGrab), noDelayError);
+    }
+
 
     void printPcfPins(){
       Serial.println("===== Pcf -> Robot =====");
@@ -287,38 +281,47 @@ struct IOManager{
       setupPins();
     }
     bool setupPins(){
-      if(usePcf){
-        Wire.begin(SDA, SCL);
-        outState = 0;
-        Wire.beginTransmission(outputAddress);
-        writeInv();
-        auto resOut = Wire.endTransmission();
-        Wire.beginTransmission(inputAddress);
-        Wire.write(0xFF);
-        auto resIn  = Wire.endTransmission();
-        if(resOut){
-          Serial.print("ERROR PCF setup Out: ");
-          Serial.println(resOut);
-        }
-        if(resIn){
-          Serial.print("ERROR PCF setup In:  ");
-          Serial.println(resIn);
-        }
-        return !(resOut || resIn);
-      }else{
-        //Wire.end();
-        pinMode(PinRobotIdle, INPUT);
-        pinMode(PinSend, OUTPUT);
-        writeInvDigital(PinSend, 0);
-        for(int i=0; i<CmdPinsCount; i++){
-            pinMode(PinsCmd[i], OUTPUT);
-            writeInvDigital(PinsCmd[i], 0);
-        }
-        if(PinRobotAck >= 0){
-            pinMode(PinRobotAck, INPUT);
-        }
+      if(PinGrabber >= 0){
+        pinMode(PinGrabber, OUTPUT);
+        digitalWrite(PinGrabber, false);
       }
-      return true;
+      Wire.begin(SDA, SCL);
+      outState = 0;
+      Wire.beginTransmission(outputAddress);
+      writeInv();
+      auto resOut = Wire.endTransmission();
+      Wire.beginTransmission(inputAddress);
+      Wire.write(0xFF);
+      auto resIn  = Wire.endTransmission();
+      if(resOut){
+        Serial.print("ERROR PCF setup Out: ");
+        Serial.println(resOut);
+      }
+      if(resIn){
+        Serial.print("ERROR PCF setup In:  ");
+        Serial.println(resIn);
+      }
+      return !(resOut || resIn);
+   }
+
+    uint8_t lastInState = 0;
+    bool getDioLast(DIOMap::Function function){
+    int pin = dedicatedInputs.getPcfPin(function);
+    if(pin == -1)
+      return false;
+    return lastInState & (1 << pin);
+   }
+   
+   void loop(){
+    refreshOutState(false);
+    bool wasSuccess = false;
+    auto inState = readPcfAll(false, false, &wasSuccess);
+    if(wasSuccess){
+      lastInState = inState;
+    }
+    if(PinGrabber >= 0){
+      digitalWrite(PinGrabber, getDioLast(DIOMap::Function::IGrab));
+    }
    }
   
 };

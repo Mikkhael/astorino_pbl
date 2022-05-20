@@ -41,6 +41,8 @@ void setup() {
   }
   Serial.println("\nSerial Ready.");
 
+  ioManager.setupPins();
+  
   ////////// WIFI
   #if USE_HOME_NETWORK == 0
   if (!WiFi.config(localIP, gateway, netmask, dns1, dns2)) {
@@ -52,6 +54,7 @@ void setup() {
   
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    ioManager.refreshOutState(false);
     Serial.print(".");
     if(Serial.available()){
       if(Serial.read() == '!'){
@@ -60,13 +63,13 @@ void setup() {
       }
     }
   }
+  ioManager.refreshOutState(false);
  
   Serial.println("");
   Serial.println("WiFi connected");  
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  ioManager.setupPins();
 
   ////////// Modbus
 
@@ -84,7 +87,7 @@ void setup() {
  
 void loop() {
 
-  ioManager.refreshOutState(false);
+  ioManager.loop();
   cmd.loop();
   mbserver.loop();
   acm.loop();
