@@ -1,0 +1,63 @@
+.PROGRAM moin
+   PinIdle = 1
+   PinAck  = 2
+   PinGrab = 3
+   PinCmdA = 1001
+   PinCmdB = 1002
+   PinSend = 1008
+   CmdWordA = 0
+   CmdWordB = 0
+   CmdWordC = 0
+   CurrentBitPower = 1
+   unknown = 1
+   alt = 1
+   dummy = 1
+   SIGNAL 2
+   SIGNAL -1
+   FOR bit = 0 TO 8
+      alt = 0-alt
+      awaitsend = (1+alt)/2
+      SIGNAL 2001
+      WHILE ((SIG(1008)) == awaitsend) DO
+         dummy = 1 - dummy
+         TWAIT 0.2
+      END
+      SIGNAL 2002
+      SIGNAL 1
+      ValueA = 0 + (SIG(1001))
+      ValueB = 0 + (SIG(1002))
+      CmdWordA = CmdWordA + ValueA * CurrentBitPower * 1
+      CmdWordA = CmdWordA + ValueB * CurrentBitPower * 2
+      CurrentBitPower = CurrentBitPower * 4
+      SIGNAL 2*alt
+   END
+   SPEED 50
+   SPEED 15 MM/S
+   app = 60
+   bodyToLid = 5
+   IF (CmdWordA == 0) THEN
+      SIGNAL 3
+      unknown = 0
+   END
+   IF (CmdWordA == 1) THEN
+      SIGNAL -3
+      unknown = 0
+   END
+   IF (CmdWordA == 2) THEN
+      SIGNAL 3
+      JAPPRO P1, app
+      TWAIT 0.2
+      LMOVE P1
+      unknown = 0
+   END
+   IF (CmdWordA == 3) THEN
+      SIGNAL 3
+      LMOVE P1
+      LMOVE SHIFT (P1 BY 0,0,bodyToLid)
+      unknown = 0
+   END
+   IF unknown == 1 THEN
+      TWAIT 2
+   END
+   SIGNAL -1
+.END 
