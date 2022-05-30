@@ -36,7 +36,6 @@
    SIGNAL -2001 ; Received Full Command
    ; Main Program
    ; Parsing commands
-   StorageOffset = 0
    ; 0 none
    ; 1 on
    ; 2 off
@@ -54,15 +53,18 @@
    PutTable    = 0
    PutDiscard  = 0
    PutDone     = 0
+   StorageOffset = 0
    ; Main Commands
    ; Bottom from Storage to Table
    IF (CmdWordA < 5) THEN
+      SIGNAL 2005
       TakeStorage = 1
       PutTable = 1
       StorageOffset = CmdWordA
    END
    ; Top from Storage to Assemble
    IF ((CmdWordA >= 5) * (CmdWordA < 10)) THEN
+      SIGNAL 2006
       TakeStorage = 2
       AssembleTop = 1
       StorageOffset = (CmdWordA - 5)
@@ -143,15 +145,10 @@
    TWAIT 0.1
    PRINT logC
    
-   ; Hadnle Commands
-   ; Setting Speed
-   SPEED 50
-   SPEED 25 MM/S 
-   ; Setting approach distances
-   StorageApp = 50
-   TableApp   = 50
-   DoneApp    = 50
-   
+   SPEED 50       ; Setting speed
+   SPEED 25 MM/S  ; Setting speed
+   app = 50       ; Setting approach distance
+   ;Hadnle Command
    ; Grabber
    IF (ForceGrabber == 1) THEN
       SIGNAL 3
@@ -161,109 +158,47 @@
       SIGNAL -3
       unknown = 0
    END
-   
    ; Take
-   
-   POINT TakeDest = P0
-   TakeApp  = 0
-   ; Take Storage
    IF (TakeStorage > 0) THEN
-      TakeApp = StorageApp
-      SIGNAL 2010
+      SIGNAL -3
       IF (TakeStorage == 1) THEN
          IF (StorageOffset == 0) THEN
-            POINT TakeDest = P11
-            SIGNAL -2010
+            POINT dest = P11
          END
          IF (StorageOffset == 1) THEN
-            POINT TakeDest = P12
+            POINT dest = P12
+            SIGNAL 2010
          END
          IF (StorageOffset == 2) THEN
-            POINT TakeDest = P13
+            POINT dest = P13
+            SIGNAL 2010
          END
       END
       IF (TakeStorage == 2) THEN
          IF (StorageOffset == 0) THEN
-            POINT TakeDest = P14
-            SIGNAL -2010
+            POINT dest = P14
          END
          IF (StorageOffset == 1) THEN
-            POINT TakeDest = P15
+            POINT dest = P15
+            SIGNAL 2010
          END
          IF (StorageOffset == 2) THEN
-            POINT TakeDest = P16
+            POINT dest = P16
+            SIGNAL 2010
          END
       END
-   END
-   ; Take Table
-   IF (TakeTable == 1) THEN
-      TakeApp = TableApp
-      POINT TakeDest = P20
-      SIGNAL 2010
-   END
-   IF (TakeTable == 2) THEN
-      TakeApp = TableApp
-      POINT TakeDest = P21
-      SIGNAL 2010
-   END
-   IF (TakeTable == 3) THEN
-      TakeApp = TableApp
-      POINT TakeDest = P22
-      SIGNAL 2010
-   END
-   
-   IF ((TakeApp > 0) * ((SIG(2010)) == 0)) THEN
-      SIGNAL -3
-      JAPPRO TakeDest, TakeApp
-      LMOVE TakeDest
-      SIGNAL 3
-      TWAIT 0.2
-      LDEPART TakeApp
-      HOME
-      unknown = 0
-   END
-   
-   ; Assembly
-   ; TODO
-   
-   ; Put
-   POINT PutDest = P0
-   PutApp  = 0
-   ; Put Table
-   IF (PutTable > 0) THEN
-      PutApp = TableApp
-      SIGNAL 2010
-      IF (PutTable == 1) THEN
-         POINT PutDest = P20
+      IF (TakeStorage > 2) THEN
+         SIGNAL 2010
       END
-   END
-   ; Put Dispose
-   IF (PutDispose > 0) THEN
-      PutApp = DoneApp
-      SIGNAL 2010
-      IF (PutDispose == 1) THEN
-         POINT PutDest = P31
+      IF ((SIG(2010) == 0) THEN
+         JAPPRO dest, app
+         LMOVE dest
+         SIGNAL 3
+         TWAIT 0.2
+         LDEPART app
+         HOME
+         unknown = 0
       END
-      IF (PutDispose == 2) THEN
-         POINT PutDest = P32
-      END
-      IF (PutDispose == 3) THEN
-         POINT PutDest = P33
-      END
-   ; Put Done
-   IF (PutDone > 0) THEN
-      PutApp = DoneApp
-      POINT PutDest = P30
-      SIGNAL 2010
-   END
-   
-   IF ((PutApp > 0) * ((SIG(2010)) == 0)) THEN
-      JAPPRO PutDest, PutApp
-      LMOVE PutDest
-      SIGNAL -3
-      LDEPART PutApp
-      HOME
-      unknown = 0
    END
    
    IF unknown == 1 THEN
