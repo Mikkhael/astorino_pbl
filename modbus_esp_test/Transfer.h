@@ -121,13 +121,20 @@ public:
           updateOutputCurrentMsgPart = false;
           outputCurrentMsgPart();
         }
-        if(performDemo && state != State::Idle){
-          robotIdle = false;
-          if(millis() - demoStart >= demoLength){
-            robotIdle = true;
-            Serial.println("Completed DEMO.");
-            state = State::Idle;
-            awaitForFinish();
+        if(performDemo){
+          robotIdle = true;
+          if(state != State::Idle){
+            robotIdle = false;
+            if(millis() - demoStart >= demoLength){
+              robotIdle = true;
+              Serial.println("Completed DEMO.");
+              state = State::Idle;
+              if(msgToSend.isDebug){
+                executedDebugCmds++;
+              }else{
+                executedCmds++;
+              }
+            }
           }
         } else if(state == State::Single){
             if(awaitAck && robotIdle){
