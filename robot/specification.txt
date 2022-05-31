@@ -45,12 +45,12 @@ P14			- Storage 	Top	 	0
 P15	#		- Storage 	Top	 	1
 P16	#		- Storage 	Top	 	2
 
-P20 #		- Table		Bottom
-P21 #		- Table		Top 	Unscrewed
-P22 #		- Table		Top 	Screewed
+P20 		- Table		Bottom
+P21 		- Table		Top 	Unscrewed
+P22 		- Table		Top 	Screewed
 
-P30 #		- Done
-P31 #		- Dispose	Bottom
-P32 #		- Dispose	Top
-P33 #		- Dispose	Completed
+P30 		- Done
+P31 *		- Dispose	Bottom
+P32 *		- Dispose	Top
+P33 *		- Dispose	Completed
 

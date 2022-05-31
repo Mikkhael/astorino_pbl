@@ -1,5 +1,6 @@
 .PROGRAM moin
    ; Configuration
+   TOOL 2
    PinIdle = 1
    PinAck  = 2
    PinGrab = 3
@@ -52,7 +53,7 @@
    TakeStorage = 0
    TakeTable   = 0
    PutTable    = 0
-   PutDiscard  = 0
+   PutDispose  = 0
    PutDone     = 0
    ; Main Commands
    ; Bottom from Storage to Table
@@ -75,17 +76,17 @@
    ; Bottom from Table to Discard
    IF (CmdWordA == 15) THEN
       TakeTable  = 1
-      PutDiscard = 1
+      PutDispose = 1
    END
    ; Top Assembled from Table to Discard
    IF (CmdWordA == 16) THEN
       AssembleTop = 2
-      PutDiscard  = 2
+      PutDispose  = 2
    END
    ; Both from Table to Discard
    IF (CmdWordA == 17) THEN
       TakeTable  = 3
-      PutDiscard = 3
+      PutDispose = 3
    END
    ; Additional Commands
    ; Grabber
@@ -114,7 +115,7 @@
    END
    ; Discard
    IF ((CmdWordA >= 130) * (CmdWordA < 133)) THEN
-      PutDiscard = (CmdWordA - 129)
+      PutDispose = (CmdWordA - 129)
    END
    ; Done
    IF ((CmdWordA >= 140) * (CmdWordA < 143)) THEN
@@ -133,7 +134,7 @@
    logB = logB + ForceGrabber * 1000
    logC = logC + AssembleTop * 1
    logC = logC + PutTable * 10
-   logC = logC + PutDiscard * 100
+   logC = logC + PutDispose * 100
    logC = logC + PutDone * 1000
    PRINT 777777
    TWAIT 0.1
@@ -150,6 +151,8 @@
    ; Setting approach distances
    StorageApp = 50
    TableApp   = 50
+   AssembleApp= 30
+   DisposeApp = 1
    DoneApp    = 50
    
    ; Grabber
@@ -199,17 +202,12 @@
    IF (TakeTable == 1) THEN
       TakeApp = TableApp
       POINT TakeDest = P20
-      SIGNAL 2010
-   END
-   IF (TakeTable == 2) THEN
-      TakeApp = TableApp
-      POINT TakeDest = P21
-      SIGNAL 2010
+      SIGNAL -2010
    END
    IF (TakeTable == 3) THEN
       TakeApp = TableApp
-      POINT TakeDest = P22
-      SIGNAL 2010
+      POINT TakeDest = SHIFT( P22 BY 0,0,-6)
+      SIGNAL -2010
    END
    
    IF ((TakeApp > 0) * ((SIG(2010)) == 0)) THEN
@@ -224,10 +222,24 @@
    END
    
    ; Assembly
-   ; TODO
+   IF (AssembleTop == 1) THEN
+      JAPPRO P21, AssembleApp
+      SPEED 10
+      SPEED 5 MM/S
+      LMOVE P21
+      TWAIT 0.2
+      JMOVE P22
+      TWAIT 0.2
+      SIGNAL -3
+      TWAIT 0.2
+      SPEED 50
+      SPEED 25 MM/S
+      LDEPART TableApp
+      HOME
+   END
    
    ; Put
-   POINT PutDest = P0
+   POINT PutDest = P1
    PutApp  = 0
    ; Put Table
    IF (PutTable > 0) THEN
@@ -235,26 +247,31 @@
       SIGNAL 2010
       IF (PutTable == 1) THEN
          POINT PutDest = P20
+         SIGNAL -2010
       END
    END
    ; Put Dispose
    IF (PutDispose > 0) THEN
-      PutApp = DoneApp
+      PutApp = DisposeApp
       SIGNAL 2010
       IF (PutDispose == 1) THEN
          POINT PutDest = P31
+         SIGNAL -2010
       END
       IF (PutDispose == 2) THEN
          POINT PutDest = P32
+         SIGNAL -2010
       END
       IF (PutDispose == 3) THEN
          POINT PutDest = P33
+         SIGNAL -2010
       END
+   END
    ; Put Done
    IF (PutDone > 0) THEN
       PutApp = DoneApp
       POINT PutDest = P30
-      SIGNAL 2010
+      SIGNAL -2010
    END
    
    IF ((PutApp > 0) * ((SIG(2010)) == 0)) THEN
