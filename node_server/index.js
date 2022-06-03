@@ -4,6 +4,7 @@ const express = require("express"); // HTTP server
 const WebSocket = require("ws"); // WebSocket (asynchronous client-server communication)
 const fs = require("fs"); // FileSystem library, for testing
 const mqtt = require("mqtt"); // MQTT library
+const Modbus = require("./modbus.js") // Modbus Module
 const canvas = require("canvas");
 
 
@@ -21,10 +22,43 @@ try{
     mqtt_addr: "localhost",
     mqtt_port: 1883,
     http_port: 80,
+    mb_addr: "192.168.0.102",
+    mb_port: 502,
+    mb_keepalive: 5000,
+    mb_reconnectTimeout: 1000,
+    mb_updateInterval: 1000,
   };
 }
 
+////////////////////////// ModBus ////////////////////////
 
+const mbclient = new Modbus(
+  Config.mb_addr,
+  Config.mb_port,
+  Config.mb_keepalive,
+  Config.mb_reconnectTimeout
+);
+
+mbclient.onAssemblyCompleted = function(requestId, request){
+    console.log("[MBUS]", `Completed Request Id: ${requestId}, Colors: ${request.bottomColor} | ${request.topColor}`);
+}
+mbclient.onAssemblyRequestSend = function(requestId, request, err){
+    console.log("[MBUS]", `Sent Request Id: ${requestId}, Colors: ${request.bottomColor} | ${request.topColor}`);
+    if(err){
+        console.error("[MBUS] Assembly ", err);
+    }
+}
+mbclient.onColorUpdateSend = function(finishedId, color, err){
+    if(err){
+        console.error("[MBUS] Color Request", err);
+    }
+};
+mbclient.onPollError = function(err){
+    console.error(err);
+};
+
+mbclient.connect();
+const mbclientLoopInterval = setInterval(mbclient.loop.bind(mbclient), Config.mb_updateInterval);
 
 
 
@@ -33,6 +67,7 @@ try{
 // Array of topics to subscribe to
 const mqtt_topics = [
   `img/jpeg`,
+  'assemblyRequest',
   'topic_testowy'
 ];
 
@@ -117,6 +152,13 @@ function handleMqttMessage(topic, payload){
     broadcastNewImage(payload);
     const [avg, dev] = analyseImage(payload, cropSize);
     broadcastImageAnalysis(avg, dev, cropSize);
+
+  }else if(topic == "assemblyRequest"){
+    const request = JSON.parse(payload.toString());
+    request.bottomColor = request.bottomColor || 0;
+    request.topColor = request.topColor || 0;
+    console.log(`Received new Assembly Request for colors:`, request);
+    mbclient.enqueueRequest(request.bottomColor, request.topColor);
 
   }else{
     console.error(`Unhandled topic: `, topic);

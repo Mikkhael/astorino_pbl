@@ -35,6 +35,7 @@ class Modbus extends jsmodbus.client.TCP{
         this.socket.on("close", () => {
             console.log("[MBUS]", `Closed`);
             this.isConnected = false;
+            this.loopCompleted = false;
             if(reconnectTimeout >= 0){
                 setTimeout(this.connect.bind(this), reconnectTimeout);
             }
@@ -47,11 +48,33 @@ class Modbus extends jsmodbus.client.TCP{
         this.socket.on("connect", () => {
             console.log("[MBUS]", `Connected`);
             this.isConnected = true;
+
+            this.colorState = "Done";
+            this.assemblyState = "Done";
+
+            this.lastAssemblyRequestID = -1;
+            this.polledAssemblyFinishedID = -1;
+            this.polledColorRequestID = -1;
+            this.polledColorFinishedID = -1;
+
+            this.loopCompleted = true;
+            this.assemblyToComplete = {};
         });
 
+        this.assemblyQueue = [];
+        this.assemblyToComplete = {};
+        this.loopPromise = Promise.resolve();
+        this.loopCompleted = false;
 
-        this.lastAssemblyRequestID = 0;
-        this.lastColorRequestID = 0;
+        this.getCameraColor = function() {return 1;};
+        this.onAssemblyRequestSend = function(requestId, request, err){console.log("Ass", requestId, request, err);};
+        this.onAssemblyCompleted = function(requestId, request){console.log("AssC", requestId, request);}
+        this.onColorUpdateSend = function(finishedId, color, err){console.log("Col", finishedId, color, err);};
+        this.onPollError = function(err){console.log("Err", err)};
+    }
+
+    enqueueRequest(bottomColor, topColor){
+        this.assemblyQueue.push({bottomColor, topColor});
     }
 
     connect(){
@@ -62,57 +85,92 @@ class Modbus extends jsmodbus.client.TCP{
         })
     }
     
-    /**
-     * @param {number} colorBottom 
-     * @param {number} colorTop 
-     */
-    sendAssemblyRequest(colorBottom, colorTop){
+    poll(){
         if(!this.isConnected){
-            return Promise.reject("Disconnected");
+            this.onPollError(new Error("Disconnected."));
+            return Promise.resolve();
         }
-        return Promise.resolve().then( () => {
-            return this.readHoldingRegisters(ModbusPLCAddresses.Assemble.FinishedID, 1);
-        }).then((value) => {
-            //console.log(value.response);
-            if(this.lastAssemblyRequestID === undefined){
-                this.lastAssemblyRequestID = value.response.body.values[0] + 1;
-                return;
+        return Promise.all([
+            this.readHoldingRegisters(ModbusPLCAddresses.Color.RequestID, 1),
+            this.readHoldingRegisters(ModbusPLCAddresses.Color.FinishedID, 1),
+            this.readHoldingRegisters(ModbusPLCAddresses.Assemble.FinishedID, 1),
+        ])
+        .then((values) => {
+            this.polledColorRequestID     = values[0].response.body.values[0];
+            this.polledColorFinishedID    = values[1].response.body.values[0];
+            this.polledAssemblyFinishedID = values[2].response.body.values[0];
+            if(this.lastAssemblyRequestID < 0)
+                this.lastAssemblyRequestID = this.polledAssemblyFinishedID;
+            const completedRequest = this.assemblyToComplete[this.polledAssemblyFinishedID];
+            if(completedRequest){
+                this.onAssemblyCompleted(this.polledAssemblyFinishedID, completedRequest);
+                delete this.assemblyToComplete[this.polledAssemblyFinishedID];
             }
-            if(value.response.body.values[0] === this.lastAssemblyRequestID ){
-                this.lastAssemblyRequestID = (this.lastAssemblyRequestID + 1);
-                return;
-            }
-            throw "NotFinished";
-        }).then(() => {
-            return this.writeSingleRegister(ModbusPLCAddresses.Assemble.ColorBottom, colorBottom);
-        }).then(() => {
-            return this.writeSingleRegister(ModbusPLCAddresses.Assemble.ColorTop, colorTop);
-        }).then(() => {
-            return this.writeSingleRegister(ModbusPLCAddresses.Assemble.RequestID, this.lastAssemblyRequestID);
+            //console.log("Poll completed", this.polledColorRequestID, this.polledColorFinishedID, this.polledAssemblyFinishedID, this.lastAssemblyRequestID);
+        })
+        .catch((err) => {
+            this.onPollError(err);
         });
     }
 
-    pollForColorUpdate(){
-        if(!this.isConnected){
-            return Promise.reject("Disconnected");
+    loop(){
+        if(!this.loopCompleted){
+            return;
         }
-        return Promise.resolve().then( () => {
-            return this.readHoldingRegisters(ModbusPLCAddresses.Color.RequestID, 1);
-        }).then((value) => {
-            if(this.lastColorRequestID != value.response.body.values[0]){
-                this.lastColorRequestID = value.response.body.values[0];
-                if(this.color === undefined) this.color = 0;
-                this.color = (this.color + 1) % 3;
-                return Promise.resolve().then(() => {
-                    return this.writeSingleRegister(ModbusPLCAddresses.Color.Value, this.color);
-                }).then(() => {
-                    return this.writeSingleRegister(ModbusPLCAddresses.Color.FinishedID, this.lastColorRequestID);
-                }).then(() => {
-                    return true;
+        this.loopCompleted = false;
+        this.loopPromise = this.poll().then(() => {
+
+            if(this.colorState == "Done" && this.polledColorRequestID != this.polledColorFinishedID){
+                const color = this.getCameraColor();
+                let newFinishedID = -1;
+                Promise.resolve().then(() => {
+                    this.colorState = "Setting Color";
+                    return this.writeSingleRegister(ModbusPLCAddresses.Color.Value, color)
+                    .then(() => {
+                        this.colorState = "Setting FinishedID";
+                        newFinishedID = this.polledColorRequestID;
+                        return this.writeSingleRegister(ModbusPLCAddresses.Color.FinishedID, newFinishedID)
+                    })
+                    .then(() => {
+                        this.onColorUpdateSend(newFinishedID, color);
+                    })
+                    .catch((err) => {
+                        this.onColorUpdateSend(newFinishedID, color, err);
+                    })
+                    .finally(() => {
+                        this.colorState = "Done";
+                    });
                 });
-            }else{
-                return false;
             }
+            if(this.assemblyState == "Done" && this.polledAssemblyFinishedID == this.lastAssemblyRequestID && this.assemblyQueue.length > 0){
+                const request = this.assemblyQueue[0];
+                Promise.resolve().then(() => {
+                    this.assemblyState = "Setting Colors";
+                    return Promise.all([
+                        this.writeSingleRegister(ModbusPLCAddresses.Assemble.ColorBottom, request.bottomColor),
+                        this.writeSingleRegister(ModbusPLCAddresses.Assemble.ColorTop,    request.topColor),
+                    ])
+                    .then(() => {
+                        this.assemblyState = "Setting RequestID";
+                        return this.writeSingleRegister(ModbusPLCAddresses.Assemble.RequestID, this.lastAssemblyRequestID+1)
+                    })
+                    .then(() => {
+                        this.assemblyQueue.shift();
+                        this.lastAssemblyRequestID += 1;
+                        this.assemblyToComplete[this.lastAssemblyRequestID] = request;
+                        this.onAssemblyRequestSend(this.lastAssemblyRequestID, request );
+                    })
+                    .catch((err) => {
+                        this.onAssemblyRequestSend(this.lastAssemblyRequestID+1, request, err);
+                    })
+                    .finally(() => {
+                        this.assemblyState = "Done";
+                    });
+                })
+            }
+        })
+        .finally(() => {
+            this.loopCompleted = true;
         })
     }
 
