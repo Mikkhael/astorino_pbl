@@ -1,0 +1,208 @@
+.PROGRAM moin
+   ; Configuration
+   PinIdle = 1
+   PinAck  = 2
+   PinGrab = 3
+   PinCmdA = 1001
+   PinCmdB = 1002
+   PinSend = 1008
+   ; Variables Init
+   CmdWordA = 0
+   CurrentBitPower = 1
+   unknown = 1
+   alt = 1
+   dummy = 1
+   ; Receiving Command
+   SIGNAL  2    ; Set Ack  to 0
+   SIGNAL -1    ; Set Idle to 1
+   SIGNAL  2001 ; Waiting for command
+   FOR bit = 0 TO 8
+      alt = 0-alt
+      awaitsend = (1+alt)/2
+      SIGNAL 2002 ; Waiting for next Part
+      WHILE ((SIG(1008)) == awaitsend) DO
+         dummy = 1 - dummy
+         TWAIT 0.2
+      END
+      SIGNAL -2002 ; Received Next Part
+      SIGNAL 1 ; Set Idle to 0
+      ValueA = 0 + (SIG(1001))
+      ValueB = 0 + (SIG(1002))
+      CmdWordA = CmdWordA + ValueA * CurrentBitPower * 1
+      CmdWordA = CmdWordA + ValueB * CurrentBitPower * 2
+      CurrentBitPower = CurrentBitPower * 4
+      SIGNAL 2*alt ; Set Ack
+   END
+   SIGNAL -2001 ; Received Full Command
+   ; Main Program
+   ; Parsing commands
+   ; 0 none
+   ; 1 on
+   ; 2 off
+   ForceGrabber = 0
+   ; 0 none
+   ; 1 assemble
+   ; 2 disassemble
+   AssembleTop = 0
+   ; 0 none
+   ; 1 bottom
+   ; 2 top
+   ; 3 both
+   TakeStorage = 0
+   TakeTable   = 0
+   PutTable    = 0
+   PutDiscard  = 0
+   PutDone     = 0
+   StorageOffset = 0
+   ; Main Commands
+   ; Bottom from Storage to Table
+   IF (CmdWordA < 5) THEN
+      SIGNAL 2005
+      TakeStorage = 1
+      PutTable = 1
+      StorageOffset = CmdWordA
+   END
+   ; Top from Storage to Assemble
+   IF ((CmdWordA >= 5) * (CmdWordA < 10)) THEN
+      SIGNAL 2006
+      TakeStorage = 2
+      AssembleTop = 1
+      StorageOffset = (CmdWordA - 5)
+   END
+   ; Both from Table to Done
+   IF ((CmdWordA >= 10) * (CmdWordA < 14)) THEN
+      TakeTable = 3
+      PutDone   = 3
+   END
+   ; Bottom from Table to Discard
+   IF (CmdWordA == 15) THEN
+      TakeTable  = 1
+      PutDiscard = 1
+   END
+   ; Top Assembled from Table to Discard
+   IF (CmdWordA == 16) THEN
+      AssembleTop = 2
+      PutDiscard  = 2
+   END
+   ; Both from Table to Discard
+   IF (CmdWordA == 17) THEN
+      TakeTable  = 3
+      PutDiscard = 3
+   END
+   ; Additional Commands
+   ; Grabber
+   IF (CmdWordA == 50) THEN
+      ForceGrabber = 1
+   END
+   IF (CmdWordA == 51) THEN
+      ForceGrabber = 2
+   END
+   ; Take Storage
+   IF ((CmdWordA >= 100) * (CmdWordA < 105)) THEN
+      TakeStorage = 1
+      StorageOffset = (CmdWordA - 100)
+   END
+   IF ((CmdWordA >= 105) * (CmdWordA < 110)) THEN
+      TakeStorage = 2
+      StorageOffset = (CmdWordA - 105)
+   END
+   ; Take Table
+   IF ((CmdWordA >= 110) * (CmdWordA < 113)) THEN
+      TakeTable = (CmdWordA - 109)
+   END
+   ; Put Table
+   IF ((CmdWordA >= 120) * (CmdWordA < 123)) THEN
+      PutTable  = (CmdWordA - 119)
+   END
+   ; Discard
+   IF ((CmdWordA >= 130) * (CmdWordA < 133)) THEN
+      PutDiscard = (CmdWordA - 129)
+   END
+   ; Done
+   IF ((CmdWordA >= 140) * (CmdWordA < 143)) THEN
+      PutDone = (CmdWordA - 139)
+   END
+   ; Assemble
+   IF ((CmdWordA >= 150) * (CmdWordA < 152)) THEN
+      PutDone = (CmdWordA - 149)
+   END
+   ; Log Command
+   logB = 80000
+   logC = 90000
+   logB = logB + TakeStorage * 1
+   logB = logB + TakeTable * 10
+   logB = logB + StorageOffset * 100
+   logB = logB + ForceGrabber * 1000
+   logC = logC + AssembleTop * 1
+   logC = logC + PutTable * 10
+   logC = logC + PutDiscard * 100
+   logC = logC + PutDone * 1000
+   PRINT 777777
+   TWAIT 0.1
+   PRINT CmdWordA
+   TWAIT 0.1
+   PRINT logB
+   TWAIT 0.1
+   PRINT logC
+   
+   SPEED 50       ; Setting speed
+   SPEED 25 MM/S  ; Setting speed
+   app = 50       ; Setting approach distance
+   ;Hadnle Command
+   ; Grabber
+   IF (ForceGrabber == 1) THEN
+      SIGNAL 3
+      unknown = 0
+   END
+   IF (ForceGrabber == 2) THEN
+      SIGNAL -3
+      unknown = 0
+   END
+   ; Take
+   IF (TakeStorage > 0) THEN
+      SIGNAL -3
+      IF (TakeStorage == 1) THEN
+         IF (StorageOffset == 0) THEN
+            POINT dest = P11
+         END
+         IF (StorageOffset == 1) THEN
+            POINT dest = P12
+            SIGNAL 2010
+         END
+         IF (StorageOffset == 2) THEN
+            POINT dest = P13
+            SIGNAL 2010
+         END
+      END
+      IF (TakeStorage == 2) THEN
+         IF (StorageOffset == 0) THEN
+            POINT dest = P14
+         END
+         IF (StorageOffset == 1) THEN
+            POINT dest = P15
+            SIGNAL 2010
+         END
+         IF (StorageOffset == 2) THEN
+            POINT dest = P16
+            SIGNAL 2010
+         END
+      END
+      IF (TakeStorage > 2) THEN
+         SIGNAL 2010
+      END
+      IF ((SIG(2010) == 0) THEN
+         JAPPRO dest, app
+         LMOVE dest
+         SIGNAL 3
+         TWAIT 0.2
+         LDEPART app
+         HOME
+         unknown = 0
+      END
+   END
+   
+   IF unknown == 1 THEN
+      TWAIT 2
+   END
+   SIGNAL -1 ; Set Idle to 1
+.END 

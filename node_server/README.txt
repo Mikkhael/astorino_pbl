@@ -12,6 +12,11 @@ const Config = {
     mqtt_addr: "192.168.0.238",
     mqtt_port: 1883,
     http_port: 80,
+    mb_addr: "192.168.0.102",
+    mb_port: 502,
+    mb_keepalive: 5000,
+    mb_reconnectTimeout: 1000,
+    mb_updateInterval: 1000,
 }
 module.exports = Config;
 === Do tąd ===

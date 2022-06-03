@@ -22,7 +22,10 @@ public:
 
     // Current State
     enum State {Idle, Single, Advanced, Alternating} state;
-    bool awaitAck   = false;
+    bool awaitAck    = false;
+    bool performDemo = false;
+    unsigned long  demoLength  = 2000;
+    unsigned long  demoStart   = 0;
 
     int currentBit   = 0;
     int bitsToSend   = 0;
@@ -77,6 +80,10 @@ public:
     bool beginSend(const Msg& msg, State mode){
       if(state != State::Idle)
         return false;
+      if(performDemo){
+        Serial.println("PERFORMING DEMO SEND CMD");
+        demoStart = millis();
+      }
       msgToSend    = msg;
       currentBit   = 0;
       awaitAck     = true;
@@ -85,13 +92,7 @@ public:
         debugf("Starting to send Single Cmd (0x%.4X). Await IDLE\n", msgToSend.parts[0]);
         return true;
       }
-      if(msg.parts[0] < 128){
-          bitsToSend = WordSize;
-      }else if(msg.parts[0] < 256){
-          bitsToSend = WordSize*2;
-      }else{
-          bitsToSend = WordSize*3;
-      }
+      bitsToSend = WordSize;
       debugf("Starting to send %s Cmd (0x%.4X | 0x%.4X | 0x%.4X ), length %d\n", state==State::Advanced ? "Advanced" : "Alternating", msgToSend.parts[0], msgToSend.parts[1], msgToSend.parts[2], bitsToSend);
       updateOutputCurrentMsgPart = true;
       return true;
@@ -120,7 +121,22 @@ public:
           updateOutputCurrentMsgPart = false;
           outputCurrentMsgPart();
         }
-        if(state == State::Single){
+        if(performDemo){
+          robotIdle = true;
+          if(state != State::Idle){
+            robotIdle = false;
+            if(millis() - demoStart >= demoLength){
+              robotIdle = true;
+              Serial.println("Completed DEMO.");
+              state = State::Idle;
+              if(msgToSend.isDebug){
+                executedDebugCmds++;
+              }else{
+                executedCmds++;
+              }
+            }
+          }
+        } else if(state == State::Single){
             if(awaitAck && robotIdle){
                 outputMsgSingle();
             }else if(!awaitAck && !robotIdle){

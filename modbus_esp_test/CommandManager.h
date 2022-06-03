@@ -19,13 +19,16 @@ const char* HELP_STR =
 "mode (single|adv|alt) - set cmd sending mode\n"
 "word size             - set cmd word size (in bits)\n"
 "usepcf (0|1)          - set wheather using PCF\n"
+"haltpcf (0|1)         - halt PCF communication\n"
 "r                     - reads all pcf pins\n"
 "w pin (0|1)           - sets output pcf pin\n"
 "dr                    - read dedicated i/o pins\n"
 "dw name (0|1)         - sets dedicated output pin\n"
 "da name robotPin      - assigns a pin to a name\n"
+"setgrabber pin [inv]  - assigns GPIO pin for Grabber\n"
+"demo (0|1)            - set DEMO mode\n"
 "stopsend              - aborts sending cmd\n"
-"=====";
+"=====\n";
 
 
 struct CommandManager
@@ -174,6 +177,11 @@ struct CommandManager
       ioManager.usePcf = val;
       ioManager.setupPins();
     }
+    else if(args[0] == "haltpcf"){
+      bool val = args[1][0] == '1';
+      Serial.printf("Halting PCF communication: %d\n", val);
+      ioManager.isPcfCommunicationHalted = val;
+    }
     else if(args[0] == "r"){
       uint8_t in = ioManager.readPcfAll(true);
       uint8_t out = ioManager.getRawOutState();
@@ -221,6 +229,23 @@ struct CommandManager
         ioManager.assignPcfPin(args[1], isInput, pcfPin);
       }
     }
+    else if(args[0] == "setgrabber"){
+      int pinId = args[1][0] - '0';
+      int pin = 0;
+      if(pinId > 0 && pinId <= IOManager::GPIOPinsMapCount){
+        pin = IOManager::GPIOPinsMap[pinId];
+      }
+      bool inv = args[2] == "inv";
+      Serial.printf("Assigning Grabber to GPIO pin D%d (%d), inverted = %d\n", pinId, pin, inv);
+      ioManager.PinGrabber = pin;
+      ioManager.PinGrabberInverted = inv;
+      ioManager.setupPins();
+    }
+    else if(args[0] == "demo"){
+      bool val = args[1][0] == '1';
+      Serial.printf("Setting DEMO mode: %d\n", val);
+      acm->sender.performDemo = val;
+    }
     else if(args[0] == "stopsend"){
       Serial.println("Aborting transfer\n");
       acm->abort();
@@ -232,7 +257,7 @@ struct CommandManager
   }
 
   void parseCommandString(String cmdStr, String args[]){
-    Serial.printf("Parsing command: \"%s\"\n", cmdStr.c_str());
+    //Serial.printf("Parsing command: \"%s\"\n", cmdStr.c_str());
     int lastIndex = 0;
     int i=0;
     for(i=0; i<MAX_ARGS; i++){

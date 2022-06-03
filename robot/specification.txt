@@ -1,0 +1,56 @@
+
+Main Commands
+0 .. 4		- Take Bottom from Storage (of given offset) and Put on Table
+5 .. 9     	- Take Top from Storage (of given offset) and Assemble on Table
+10       	- Take Top from Table and Put as Done
+15			- Take Bottom from Table and Put as Discard
+16			- Disassemble Top from Table and Put as Discard
+17			- Take Completed from Table and Put as Discard
+
+Additional Commands
+
+50			- Grab
+51			- UnGrab
+100 .. 104	- Take    Bottom     from Storage (of given offset)
+105 .. 109 	- Take    Top        from Storage (of given offset)
+110			- Take 	  Bottom 	 from Table
+111			- Take 	  Top 		 from Table
+112			- Take 	  Completed  from Table
+120			- Put  	  Bottom 	 on Table
+121			- Put  	  Top 		 on Table
+122			- Put  	  Completed  on Table
+130			- Discard Bottom
+131			- Discard Top
+132			- Discard Completed
+140			- Done    Bottom
+141			- Done    Top
+142			- Done    Completed
+
+Pins
+
+PinIdle 	- 1
+PinAck  	- 2
+PinGrab 	- 3
+PinCmdA 	- 1001
+PinCmdB 	- 1002
+PinSend 	- 1008
+
+Points (# - not yet tought)
+
+P11			- Storage 	Bottom 	0
+P12	#		- Storage 	Bottom 	1
+P13	#		- Storage 	Bottom 	2 
+
+P14			- Storage 	Top	 	0
+P15	#		- Storage 	Top	 	1
+P16	#		- Storage 	Top	 	2
+
+P20 		- Table		Bottom
+P21 		- Table		Top 	Unscrewed
+P22 		- Table		Top 	Screewed
+
+P30 		- Done
+P31 *		- Dispose	Bottom
+P32 *		- Dispose	Top
+P33 *		- Dispose	Completed
+

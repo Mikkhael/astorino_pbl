@@ -86,8 +86,10 @@ struct IOManager{
     constexpr static int PcfToRobotPin(int pcfPinNumber, bool isPcfOutput){
       return (8 - pcfPinNumber) + isPcfOutput * 1000;
     }
+
+    
     static constexpr int CmdPinsCountMax = 2;
-    int CmdPinsCount = 2;
+    int  CmdPinsCount   = 2;
     bool usePcf         = true;
     bool invertedOutput = false;
     bool invertedInput  = true;
@@ -100,10 +102,19 @@ struct IOManager{
     int PinRobotAck  = D6;
     */
 
-    int PinGrabber = D4;
+    constexpr static int GPIOPinsMapCount = 9;
+    constexpr static int GPIOPinsMap[GPIOPinsMapCount] = {
+      D0, D1, D2, D3, D4, D5, D6, D7, D8
+    };
+    
+    int PinGrabber = D5;
+    bool PinGrabberInverted = true;
 
 // PCF pins
 
+    bool isPcfCommunicationHalted = false;
+    bool wasNoErrorWrite = true;
+    bool wasNoErrorRead  = true;
     // Output
     uint8_t outputAddress = 0x38;
     DIOMap dedicatedOutputs;
@@ -122,8 +133,8 @@ struct IOManager{
       dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OReset,   RobotToPcfPin(1005));
 
       dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OSend,    RobotToPcfPin(1008));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd1,     RobotToPcfPin(1001));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd2,     RobotToPcfPin(1002));
+      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd1,    RobotToPcfPin(1001));
+      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd2,    RobotToPcfPin(1002));
 
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IError, RobotToPcfPin(7));
 
@@ -175,16 +186,21 @@ struct IOManager{
     
     bool refreshOutState(bool noDelayError = true){
       static unsigned int errorDelay = 0;
+      if(isPcfCommunicationHalted){
+        return wasNoErrorWrite = false;
+      }
       Wire.beginTransmission(outputAddress);
       writeInv();
       auto res = Wire.endTransmission();
-      if(res != 0 && (noDelayError || errorDelay < millis()) ){
-        errorDelay = millis() + 5000;
-        Serial.print("ERROR PCF write: ");
-        Serial.println(res);
-        return false;
+      if(res != 0){
+        if(noDelayError || errorDelay < millis()){
+          errorDelay = millis() + 5000;
+          Serial.print("ERROR PCF write: ");
+          Serial.println(res);
+        }
+        return wasNoErrorWrite = false;
       }
-      return true;
+      return wasNoErrorWrite = true;
     }
     bool writePcfPin(uint8_t pin, bool val, bool raw = false, bool noDelayError = true){
         bool toSet = (raw && invertedOutput) ? !val : val;
@@ -198,19 +214,27 @@ struct IOManager{
     
     uint8_t readPcfAll(bool raw = false, bool noDelayError = true, bool* wasSuccess = NULL){
       static unsigned int errorDelay = 0;
+      if(isPcfCommunicationHalted){
+        wasNoErrorRead = false;
+        return 0;
+      }
       auto res = Wire.requestFrom(inputAddress, uint8_t(1));
-      if(res != 1 && (noDelayError || errorDelay < millis())){
-        errorDelay = millis() + 5000;
-        Serial.print("ERROR PCF read: ");
-        Serial.println(res);
+      if(res != 1){
+        if(noDelayError || errorDelay < millis()){
+          errorDelay = millis() + 5000;
+          Serial.print("ERROR PCF read: ");
+          Serial.println(res);  
+        }
         if(wasSuccess){
           *wasSuccess = false;
         }
+        wasNoErrorRead = false;
         return 0;
       }
       if(wasSuccess){
         *wasSuccess = true;
       }
+      wasNoErrorRead = true;
       return (raw || !invertedInput) ? Wire.read() : ~Wire.read();
     }
 
@@ -294,11 +318,13 @@ struct IOManager{
       Wire.write(0xFF);
       auto resIn  = Wire.endTransmission();
       if(resOut){
+        wasNoErrorWrite = false;
         Serial.print("ERROR PCF setup Out: ");
         Serial.println(resOut);
       }
       if(resIn){
         Serial.print("ERROR PCF setup In:  ");
+        wasNoErrorRead = false;
         Serial.println(resIn);
       }
       return !(resOut || resIn);
@@ -320,7 +346,7 @@ struct IOManager{
       lastInState = inState;
     }
     if(PinGrabber >= 0){
-      digitalWrite(PinGrabber, getDioLast(DIOMap::Function::IGrab));
+      digitalWrite(PinGrabber, wasNoErrorRead && (getDioLast(DIOMap::Function::IGrab) != PinGrabberInverted));
     }
    }
   
