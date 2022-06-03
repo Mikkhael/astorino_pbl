@@ -25,7 +25,7 @@ const char* HELP_STR =
 "dr                    - read dedicated i/o pins\n"
 "dw name (0|1)         - sets dedicated output pin\n"
 "da name robotPin      - assigns a pin to a name\n"
-"setgrabber pin [inv]  - assigns GPIO pin for Grabber\n"
+"dag name pin [inv]    - assigns a GPIO pin to a name\n"
 "demo (0|1)            - set DEMO mode\n"
 "stopsend              - aborts sending cmd\n"
 "=====\n";
@@ -229,17 +229,21 @@ struct CommandManager
         ioManager.assignPcfPin(args[1], isInput, pcfPin);
       }
     }
-    else if(args[0] == "setgrabber"){
-      int pinId = args[1][0] - '0';
-      int pin = 0;
-      if(pinId > 0 && pinId <= IOManager::GPIOPinsMapCount){
-        pin = IOManager::GPIOPinsMap[pinId];
+    else if(args[0] == "dag"){
+      auto function = DIOMap::getFunctionFromName(args[1], false);
+      if(function == DIOMap::Function::NONE){
+        Serial.printf("Function named %s does not exist\n", args[1].c_str());
+      }else{
+        int pinId = args[2][0] - '0';
+        int pin = 0;
+        if(pinId > 0 && pinId <= IOManager::GPIOPinsMapCount){
+          pin = IOManager::GPIOPinsMap[pinId];
+        }
+        bool inv = (args[3] == "inv");
+        Serial.printf("Assigning pin D%d (%d) [Inv: %d] to function %s\n", pinId, pin, inv, args[1]);
+        ioManager.dedicatedGPIO.assignFunctionToGpio(function, pinId, inv);
+        ioManager.setupPins();
       }
-      bool inv = args[2] == "inv";
-      Serial.printf("Assigning Grabber to GPIO pin D%d (%d), inverted = %d\n", pinId, pin, inv);
-      ioManager.PinGrabber = pin;
-      ioManager.PinGrabberInverted = inv;
-      ioManager.setupPins();
     }
     else if(args[0] == "demo"){
       bool val = args[1][0] == '1';

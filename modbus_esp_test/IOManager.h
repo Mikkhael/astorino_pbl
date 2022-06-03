@@ -17,20 +17,24 @@ void printBinaryUint8(uint8_t val){
 }
 
 class DIOMap{
-  constexpr static int PinsCount = 8;
-  constexpr static int OutFunctionsCount = 11;
-  constexpr static int FunctionsCount  = 24;
+  constexpr static int PinsCount = 9;
+  constexpr static int OutFunctionsCount = 8+3;
+  constexpr static int InFunctionsCount = 10+3;
+  constexpr static int GPIOFunctionsCount  = 2;
+  constexpr static int FunctionsCount  = OutFunctionsCount+InFunctionsCount+GPIOFunctionsCount;
 public:
   enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt, // 8 DIO
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
-                              IIdle, IAck, IGrab,                                                                // 3 Custom
+                              IIdle, IAck, IGrab,                                                               // 3 Custom
+                             GGrab, GFar1,                                                                      // 2 GPIO
                              NONE};
   constexpr static char* FunctionNames[FunctionsCount+1] {
     "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
     "Send", "Cmd1", "Cmd2",
     "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
     "Idle", "Ack",  "Grab",
+    "GGrab", "GFar1",
     "NONE"};
 private:
   static_assert(static_cast<int>(Function::OMotorOn) == 0);
@@ -40,16 +44,20 @@ private:
   int pcfPinToFunctionMap[PinsCount];
   int functionToPcfPinMap[FunctionsCount];
 public:
+  int isInversedGpio[PinsCount];
 
   static constexpr char* getFunctionName(Function function){
     return FunctionNames[static_cast<int>(function)];
   }
-  static Function getFunctionFromName(String name, bool isInput){
-    for(int i = isInput ? OutFunctionsCount : 0; i < FunctionsCount; i++){
+  static Function getFunctionFromName(String name, int type){
+    for(int i = type == 1 ? OutFunctionsCount : (type == 2 ? (OutFunctionsCount+InFunctionsCount) : 0); i < FunctionsCount; i++){
       if(name == FunctionNames[i])
         return static_cast<Function>(i);
     }
     return Function::NONE;
+  }
+  static Function getFunctionFromName(String name, bool isInput){
+    return getFunctionFromName(name, isInput ? 1 : 0);
   }
   static void printFunction(Function function){
     Serial.print(getFunctionName(function));
@@ -65,6 +73,7 @@ public:
   DIOMap(){
     for(int i=0; i<PinsCount; i++){
       pcfPinToFunctionMap[i] = static_cast<int>(Function::NONE);
+      isInversedGpio[i] = false;
     }
     for(int i=0; i<FunctionsCount; i++){
       functionToPcfPinMap[i] = -1;
@@ -75,6 +84,12 @@ public:
     int functionInt = static_cast<int>(function);
     functionToPcfPinMap[functionInt] = pcfPin;
     pcfPinToFunctionMap[pcfPin] = functionInt;
+  }
+  void assignFunctionToGpio(Function function, int pin, bool inv){
+    int functionInt = static_cast<int>(function);
+    functionToPcfPinMap[functionInt] = pin;
+    pcfPinToFunctionMap[pin] = functionInt;
+    isInversedGpio[pin] = inv;
   }
 };
 
@@ -106,9 +121,8 @@ struct IOManager{
     constexpr static int GPIOPinsMap[GPIOPinsMapCount] = {
       D0, D1, D2, D3, D4, D5, D6, D7, D8
     };
-    
-    int PinGrabber = D5;
-    bool PinGrabberInverted = true;
+
+    DIOMap dedicatedGPIO;
 
 // PCF pins
 
@@ -141,6 +155,9 @@ struct IOManager{
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IIdle, RobotToPcfPin(1));
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IAck,  RobotToPcfPin(2));
       dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IGrab, RobotToPcfPin(3));
+
+      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GGrab, 5, true);
+      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GFar1, 6, true);
       
     }
 
@@ -163,6 +180,43 @@ struct IOManager{
         return false;
       }
       return readPcfPin(pcfPin);
+    }
+    bool setGpio(DIOMap::Function function, bool value, bool raw = false){
+      int pin  = dedicatedGPIO.getPcfPin(function);
+      if(pin == -1){
+        Serial.print("Pin for function ");
+        DIOMap::printFunction(function);
+        Serial.println(" is not assigned");
+        return false;
+      }
+      int dpin = GPIOPinsMap[pin];
+      if(!raw && dedicatedGPIO.isInversedGpio[pin]){
+        value = !value;
+      }
+      digitalWrite(dpin, value);
+      return true;
+    }
+    bool setGpioIf(DIOMap::Function function, bool cond, bool value){
+      if(cond){
+        return setGpio(function, value);
+      }else{
+        return setGpio(function, false, true);
+      }
+    }
+    bool getGpio(DIOMap::Function function, bool& valueOut){
+      int pin  = dedicatedGPIO.getPcfPin(function);
+      if(pin == -1){
+        Serial.print("Pin for function ");
+        DIOMap::printFunction(function);
+        Serial.println(" is not assigned");
+        return false;
+      }
+      int dpin = GPIOPinsMap[pin];
+      valueOut = digitalRead(dpin);
+      if(dedicatedGPIO.isInversedGpio[pin]){
+        valueOut = !valueOut;
+      }
+      return true;
     }
 
     auto writeInv(){
@@ -266,6 +320,12 @@ struct IOManager{
       return readPcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::IGrab), noDelayError);
     }
 
+    bool getFar1(){
+      bool res = false;
+      getGpio(DIOMap::Function::GFar1, res);
+      return res;
+    }
+
 
     void printPcfPins(){
       Serial.println("===== Pcf -> Robot =====");
@@ -289,8 +349,18 @@ struct IOManager{
           Serial.printf("%s\t(%d (%d))\t = %d [%d]\n", name, i, PcfToRobotPin(i, false), val, valRaw);
         }
       }
+      Serial.println("===== GPIO =====");
+      for(int i=0; i<GPIOPinsMapCount; i++){
+        DIOMap::Function function = dedicatedGPIO.getFunction(i);
+        if(function != DIOMap::Function::NONE){
+          auto name = DIOMap::getFunctionName(function);
+          bool val = false;
+          bool success = getGpio(function, val);
+          Serial.printf("%s\t(D%d (%d))\t = %d%c\n", name, i, GPIOPinsMap[i], val, success ? ' ' : '!');
+        }
+      }
     }
-    
+
     void assignPcfPin(String name, bool isInput, int pcfPinNumber){
       DIOMap::Function function = DIOMap::getFunctionFromName(name, isInput);
       if(function == DIOMap::Function::NONE){
@@ -304,10 +374,19 @@ struct IOManager{
       }
       setupPins();
     }
+    
     bool setupPins(){
-      if(PinGrabber >= 0){
-        pinMode(PinGrabber, OUTPUT);
-        digitalWrite(PinGrabber, false);
+      int pin = -1;
+      pin = dedicatedGPIO.getPcfPin(DIOMap::Function::GGrab);
+      if(pin != -1){
+        pin = GPIOPinsMap[pin];
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, false);
+      }
+      pin = dedicatedGPIO.getPcfPin(DIOMap::Function::GFar1);
+      if(pin != -1){
+        pin = GPIOPinsMap[pin];
+        pinMode(pin, INPUT);
       }
       Wire.begin(SDA, SCL);
       outState = 0;
@@ -345,9 +424,7 @@ struct IOManager{
     if(wasSuccess){
       lastInState = inState;
     }
-    if(PinGrabber >= 0){
-      digitalWrite(PinGrabber, wasNoErrorRead && (getDioLast(DIOMap::Function::IGrab) != PinGrabberInverted));
-    }
+    setGpioIf(DIOMap::Function::GGrab, wasNoErrorRead, getDioLast(DIOMap::Function::IGrab));
    }
   
 };
