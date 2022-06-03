@@ -99,7 +99,7 @@ wss.on("error", (err) => {
 
 ////////////////////////// Functions ////////////////////////
 
-// Size of the cropped area of the image to analyse
+// Size of the cropped area of the image to analyse przewidziana wielkość przesyłangeo obrazu
 const cropSize = 8;
 
 /**
@@ -113,17 +113,17 @@ function handleMqttMessage(topic, payload){
   }else if(topic == "img/jpeg"){
     console.log("Received image.");
     broadcastNewImage(payload);
-    const [avg, dev] = analyseImage(payload, cropSize);
-    broadcastImageAnalysis(avg, dev, cropSize);
+    const [avg, dev, hsl] = analyseImage(payload, cropSize);
+    broadcastImageAnalysis(avg, dev, cropSize, hsl[0], hsl[1], hsl[2]);
 
   }else{
     console.error(`Unhandled topic: `, topic);
   }
 }
 
-function broadcastImageAnalysis(avg, dev, cropSize){
+function broadcastImageAnalysis(avg, dev, cropSize, h, s, l){
   const payload = { // Create an object with image analysis results
-    avg, dev, cropSize
+    avg, dev, cropSize, h, s, l
   };
   const payload_str = JSON.stringify(payload); // Convert the object to a string
   mqttClient.publish("analysis", payload_str); // Publish the message
@@ -161,7 +161,9 @@ function analyseImage(jpegBytes, cropSize){
     dev[channel] /= pixels.length / 4;
     dev[channel] -= avg[channel]**2;
   }
-  return [avg, dev];
+  matchcolor(avg);
+  let hsl = rgbToHsl(avg);
+  return [avg, dev, hsl];
 }
 
 /**
@@ -180,3 +182,72 @@ function broadcastNewImage(data){
 
   }
 }
+
+   // const rangehighR;
+   function matchcolor(avg)
+   {
+	   218,200,171.25
+
+
+	    let rangehighR=250;
+		let rangelowR=190;
+		let rangehighG=230;
+		let rangelowG=170;
+		let rangehighB=190;
+		let rangelowB=150;
+
+		const avgR = avg[0];
+		const avgG = avg[1];
+		const avgB = avg[2];
+
+		if(avgR <= rangehighR  && avgR >= rangelowR)
+		{
+			
+			
+			if(avgG <= rangehighG  && avgG >= rangelowG)
+			{
+				if(avgB <= rangehighG  && avgB >= rangelowB)
+				{
+				//console.log("Wykryty kolor: pomarańczowy ");		
+				}
+			}
+		}
+   }
+
+
+	function rgbToHsl(avg) {
+	  let r=avg[0];
+	  let g=avg[1];
+	  let b=avg[2];
+	  
+	  r /= 255, g /= 255, b /= 255;
+
+	  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+	  var h, s, l = (max + min) / 2;
+
+	  if (max == min) {
+		h = s = 0; // achromatic
+	  } else {
+		var d = max - min;
+		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+		switch (max) {
+		  case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+		  case g: h = (b - r) / d + 2; break;
+		  case b: h = (r - g) / d + 4; break;
+		}
+
+		h /= 6;
+	  }
+	  console.log("Wartość h:" +h);
+	  console.log("Wartość s:" +s);
+	  console.log("Wartość l:" +l);
+	  
+	  if(h >= 0.135 && h <= 0.142)
+	  {
+		  console.log("To jest pomarancza");
+	  }
+		  
+	  
+	  return [ h, s, l ];
+	}

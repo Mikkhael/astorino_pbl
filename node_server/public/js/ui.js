@@ -22,6 +22,9 @@ function initUIElements(){
     UI.imageAnalysis.dev = document.querySelector('#dev');
     UI.imageAnalysis.cropSize = document.querySelector('#cropSize');
     UI.imageAnalysis.avgColor = document.querySelector('#avgColor');
+	UI.imageAnalysis.h = document.querySelector('#h');
+	UI.imageAnalysis.s = document.querySelector('#s');
+	UI.imageAnalysis.l = document.querySelector('#l');
 }
 
 let currentImageDataUrl = null; // Last bounded URL to the image data Blob
@@ -47,4 +50,7 @@ function updateImageAnalysis(data){
     UI.imageAnalysis.dev.innerHTML = data.dev;
     UI.imageAnalysis.cropSize.innerHTML = data.cropSize;
     UI.imageAnalysis.avgColor.style.backgroundColor = rgbColorFromArray(data.avg);
+	UI.imageAnalysis.h.innerHTML = data.h;
+	UI.imageAnalysis.l.innerHTML = data.l;
+	UI.imageAnalysis.s.innerHTML = data.s;
 }
