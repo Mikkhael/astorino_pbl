@@ -1,6 +1,8 @@
 #pragma once
 #include <ModbusTCP.h>
 #include "Config.h"
+#include "Transfer.h"
+#include <type_traits>
 
 class ModbusTCPWrapper : public ModbusTCP{
 public:
@@ -17,46 +19,83 @@ struct MBServer{
     void debugRead(const char* type, TRegister* reg, uint16_t val){
         (void)val;
         if(logReads)
-          Serial.printf("%s READ   0x%.4X = 0x%.4X\n", type, reg->address.address, reg->value);
+          Serial.printf("%s READ   %.4d = %.4d\n", type, reg->address.address, reg->value);
     }
     void debugWrite(const char* type, TRegister* reg, uint16_t val){
         if(logWrites)
-          Serial.printf("%s WRITE  0x%.4X = 0x%.4X -> 0x%.4X\n", type, reg->address.address, reg->value, val);
+          Serial.printf("%s WRITE  %.4d = %.4d -> %.4d\n", type, reg->address.address, reg->value, val);
     }
+    const char* TAddressToString(TAddress& address){
+        switch(address.type){
+            case TAddress::COIL: return "COIL";
+            case TAddress::HREG: return "HREG";
+            case TAddress::ISTS: return "ISTS";
+            case TAddress::IREG: return "IREG";
+        }
+    }
+
+    enum class RegName : int {
+        Cmd = 0, CmdArg1, CmdArg2, Reset, RobotIdle, QueueEmpty, QueueFull, ExecutedCmds
+    };
+    static constexpr int RegNameCount = 8;
 
     ModbusTCPWrapper mb;
 
-    uint16_t CmdHRegOffset = 100;
-    //... CmdArgs 101, 102
+    TRegister* usedRegisters[RegNameCount];
 
-    uint16_t ResetCoilOffset = 101;
-    
-    uint16_t RobotIdleIstsOffset  = 100;
-    uint16_t QueueEmptyIstsOffset = 101;
-    uint16_t QueueFullIstsOffset  = 102;
-    
-    uint16_t ExecutedCmdsIregOffset  = 101;
+    template<typename OnWrite = nullptr_t, typename OnRead = nullptr_t>
+    void addReg(RegName name, TAddress address, OnWrite onWrite = nullptr, OnRead onRead = nullptr){
+        int regIndex = static_cast<int>(name);
+        mb.addReg(address, (uint16_t)0, 1);
+        mb.onSet(address, [this, type = TAddressToString(address)](TRegister* reg, uint16_t val){
+            debugWrite(type, reg, val);
+            if constexpr(std::is_same_v<OnWrite, nullptr_t>){
+                return val;
+            }else{
+                return onWrite(reg, val);
+            }
+        });
+        mb.onGet(address, [this, type = TAddressToString(address)](TRegister* reg, uint16_t val){
+            debugRead(type, reg, val);
+            if constexpr(std::is_same_v<OnRead, nullptr_t>){
+                return reg->value;
+            }else{
+                return onRead(reg, val);
+            }
+        });
+        usedRegisters[regIndex] = mb.searchRegister(address);
+    }
+    TRegister* getReg(RegName name){
+        int regIndex = static_cast<int>(name);
+        return usedRegisters[regIndex];
+    }
+    uint16_t get(RegName name){
+        auto reg = getReg(name);
+        return reg->value;
+    }
+    uint16_t& getRef(RegName name){
+        auto reg = getReg(name);
+        return reg->value;
+    }
+    void set(RegName name, uint16_t value){
+        auto reg = getReg(name);
+        reg->value = value;
+    }
+    void set(RegName name, bool value){
+        auto reg = getReg(name);
+        reg->value = value ? 0xFF00 : 0x0000;
+    }
 
-private:
-    TRegister* CmdHReg[1+CmdArgsCount];
-    TRegister* ResetCoil;
-    TRegister* RobotIdleIsts;
-    TRegister* QueueEmptyIsts;
-    TRegister* QueueFullIsts;
-    TRegister* ExecutedCmdsIreg;
-public:
 
     bool newCmd = false;
     bool requestedReset = false;
 
     uint16_t& cmdPart(uint16_t offset){
-        return CmdHReg[offset]->value;
+        auto name = RegName::Cmd;
+        if(offset == 1) name = RegName::CmdArg1;
+        if(offset == 2) name = RegName::CmdArg2;
+        return getRef(name);
     }
-    void setRobotIdle(bool value){ RobotIdleIsts->value = ISTS_VAL(value); }
-    bool getRobotIdle(){ return ISTS_BOOL(RobotIdleIsts->value); }
-    void setQueueEmpty(bool value){ QueueEmptyIsts->value = ISTS_VAL(value); }
-    void setQueueFull(bool value){ QueueFullIsts->value = ISTS_VAL(value); }
-    void setExecutedCmds(uint16_t value){ ExecutedCmdsIreg->value = value; }
     
     Msg getFullMsg(){
         Msg res;
@@ -66,85 +105,45 @@ public:
         return res;
     }
 
-    void createAndBindIsts(uint16_t offset, TRegister*& tregptr){
-        mb.addIsts(offset, false);
-        mb.onGetIsts(offset, [this](TRegister* reg, uint16_t val){
-            debugRead("Ists", reg, val);
-            return reg->value;  
-        });
-        tregptr = mb.searchRegister(ISTS(offset));
-    }
-    void createAndBindIreg(uint16_t offset, TRegister*& tregptr){
-        mb.addIreg(offset, 0);
-        mb.onGetIreg(offset, [this](TRegister* reg, uint16_t val){
-            debugRead("Ireg", reg, val);
-            return reg->value;  
-        });
-        tregptr = mb.searchRegister(IREG(offset));
-    }
-    void createAndBindCoil(uint16_t offset, TRegister*& tregptr){
-        mb.addCoil(offset, false);
-        mb.onGetCoil(offset, [this](TRegister* reg, uint16_t val){
-            debugRead("Coil", reg, val);
-            return reg->value;
-        });
-        tregptr = mb.searchRegister(COIL(offset));
-    }
-
-    std::function<void(void)> onNewCmd;
-
     void init(){
         mb.server();
+
         /// HREG
-        mb.addHreg(CmdHRegOffset, 0, CmdArgsCount+1);
-        mb.onGetHreg(CmdHRegOffset, [this](TRegister* reg, uint16_t val){
-            debugRead("Hreg", reg, val);
-            return reg->value;  
-        }, CmdArgsCount+1);
-        mb.onSetHreg(CmdHRegOffset, [this](TRegister* reg, uint16_t val){
-            debugWrite("Hreg", reg, val);
-            newCmd = true;
-            return val;  
+        addReg(RegName::Cmd, HREG(100), [this](TRegister* reg, uint16_t val){
+            newCmd = val;
+            return val;
         });
-        mb.onSetHreg(CmdHRegOffset+1, [this](TRegister* reg, uint16_t val){
-            debugWrite("Hreg", reg, val);
-            return val;  
-        }, CmdArgsCount);
+        addReg(RegName::CmdArg1, HREG(101));
+        addReg(RegName::CmdArg2, HREG(102));
+
         /// COIL
-        createAndBindCoil(ResetCoilOffset, ResetCoil);
-        mb.onSetCoil(ResetCoilOffset, [this](TRegister* reg, uint16_t val){
-            debugWrite("Coil", reg, val);
+        addReg(RegName::Reset, COIL(101), [this](TRegister* reg, uint16_t val){
             requestedReset = true;
             return val;
         });
-        /// ISTS
-        createAndBindIsts(RobotIdleIstsOffset, RobotIdleIsts);
-        createAndBindIsts(QueueEmptyIstsOffset, QueueEmptyIsts);
-        createAndBindIsts(QueueFullIstsOffset, QueueFullIsts);
-        /// IREG
-        createAndBindIreg(ExecutedCmdsIregOffset, ExecutedCmdsIreg);
 
-        for(uint16_t i=0; i<CmdArgsCount+1; i++){
-            CmdHReg[i] = mb.searchRegister(HREG(CmdHRegOffset + i));
-        }
+        /// ISTS
+        addReg(RegName::RobotIdle,  COIL(100));
+        addReg(RegName::QueueEmpty, COIL(102));
+        addReg(RegName::QueueFull,  COIL(103));
+
+        /// IREG
+        addReg(RegName::ExecutedCmds,  IREG(101));
 
         mb.onConnect([](IPAddress address){
             Serial.printf("Modbus Connection: %s\n", address.toString().c_str());
             return true;
         });
-        mb.onDisconnect([](IPAddress address){
+        mb.onDisconnect([this](IPAddress address){
             (void)address;
-            Serial.printf("Modbus Disconnect\n");
+            auto ip = IPAddress(mb.eventSource());
+            Serial.printf("Modbus Disconnect: %s\n", ip.toString().c_str());
             return true;
         });
     }
 
     void loop(){
         mb.task();
-        if(newCmd){
-            onNewCmd();
-            newCmd = false;
-        }
     }
 
 };

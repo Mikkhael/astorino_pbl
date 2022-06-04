@@ -24,12 +24,6 @@ const IPAddress dns2(157,158,3,2);
 
 bool usingAdvanced = false;
 unsigned int receivedModbusCmds = 0;
-void mbserverOnNewCmd(){
-  Msg msg = mbserver.getFullMsg();
-  Serial.printf("MSG %d %d %d", msg.parts[0], msg.parts[1], msg.parts[2]);
-  ++receivedModbusCmds;
-  acm.enqueueCommand(msg);
-}
 
   
 void setup() {
@@ -72,8 +66,6 @@ void setup() {
 
 
   ////////// Modbus
-
-  mbserver.onNewCmd = &mbserverOnNewCmd;
   mbserver.init();  
 
   ////////// ACM
@@ -99,10 +91,19 @@ void loop() {
     acm.sender.executedCmds = 0;
   }
 
-  mbserver.setRobotIdle(acm.isRobotIdle);
-  mbserver.setQueueEmpty(acm.cmdQueue.isempty());
-  mbserver.setQueueFull(acm.cmdQueue.isfull());
-  mbserver.setExecutedCmds(acm.sender.executedCmds);
+  if(mbserver.newCmd){
+    mbserver.newCmd = false;
+    Msg msg = mbserver.getFullMsg();
+    Serial.printf("MSG %d %d %d", msg.parts[0], msg.parts[1], msg.parts[2]);
+    ++receivedModbusCmds;
+    acm.enqueueCommand(msg);
+  }
+
+  mbserver.set(MBServer::RegName::RobotIdle,    acm.isRobotIdle);
+  mbserver.set(MBServer::RegName::QueueEmpty,   acm.cmdQueue.isempty());
+  mbserver.set(MBServer::RegName::QueueFull,    acm.cmdQueue.isfull());
+  mbserver.set(MBServer::RegName::ExecutedCmds, acm.isRobotIdle);
+  mbserver.set(MBServer::RegName::RobotIdle,    (uint16_t)acm.sender.executedCmds);
 
     
   //delay(100);
