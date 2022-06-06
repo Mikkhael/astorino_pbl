@@ -23,6 +23,25 @@
 	
 </ol>
 
+<fieldset>
+	<legend>Send New Assembly Request</legend>
+	<label for="bottomColorSelect">Bottom Color:</label>
+	<select name="bottomColor" id="bottomColorSelect">
+		<option value="0">Color 0</option>
+		<option value="1">Color 1</option>
+		<option value="2">Color 2</option>
+	</select>
+	<br>
+	<label for="topColorSelect">Top Color:</label>
+	<select name="topColor" id="topColorSelect">
+		<option value="0">Color 0</option>
+		<option value="1">Color 1</option>
+		<option value="2">Color 2</option>
+	</select>
+	<br>
+	<button onclick="performNewAssemblyRequest()">SEND</button>
+</fieldset>
+
 	<div id="avgColor" style="height: 20px; width: 40px"></div>
 <!-- div to pusty kontener stosowany do dfiniowania pustej sekcji -->
 	<script src="js/mqtt.js"></script>

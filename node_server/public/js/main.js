@@ -1,8 +1,9 @@
 //@ts-check
-
 initUIElements();
 
 ////////////////// MQTT //////////////////////////
+
+let tmp;
 
 /**
  * @param {string} topic 
@@ -11,8 +12,6 @@ initUIElements();
  *  asBytes: () => Uint8Array
  * }} payload 
  */
-let tmp;
-
 function handleMqttMessage(topic, payload){
     if(topic == "test"){
         console.log("Received test message:", payload.asString());
@@ -32,3 +31,16 @@ function handleMqttMessage(topic, payload){
 // Start the MQTT client
 MQTT_setMessageHandler(handleMqttMessage);
 const mqttClient = MQTT_createClientAndConnect();
+
+
+
+function sendNewAssemblyRequest(bottomColor, topColor){
+    console.log(`Sending assembly request for ${bottomColor} | ${topColor}`);
+    const payload = {bottomColor, topColor};
+    mqttClient.send("assemblyRequest", JSON.stringify(payload));
+}
+
+function performNewAssemblyRequest(){
+    const request = getNewAssemblyRequest();
+    sendNewAssemblyRequest(request.bottomColor, request.topColor);
+}

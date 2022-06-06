@@ -13,7 +13,19 @@ const UI = {
         cropSize: null,
         /**@type {HTMLElement} */
         avgColor: null,
+        /**@type {HTMLElement} */
+        h: null,
+        /**@type {HTMLElement} */
+        l: null,
+        /**@type {HTMLElement} */
+        s: null,
     },
+    assemblyRequest: {
+        /**@type {HTMLSelectElement} */
+        bottomColorSelect: null,
+        /**@type {HTMLSelectElement} */
+        topColorSelect: null,
+    }
 };
 
 function initUIElements(){
@@ -25,6 +37,8 @@ function initUIElements(){
 	UI.imageAnalysis.h = document.querySelector('#h');
 	UI.imageAnalysis.s = document.querySelector('#s');
 	UI.imageAnalysis.l = document.querySelector('#l');
+    UI.assemblyRequest.bottomColorSelect = document.querySelector("#bottomColorSelect");
+    UI.assemblyRequest.topColorSelect    = document.querySelector("#topColorSelect");
 }
 
 let currentImageDataUrl = null; // Last bounded URL to the image data Blob
@@ -53,4 +67,10 @@ function updateImageAnalysis(data){
 	UI.imageAnalysis.h.innerHTML = data.h;
 	UI.imageAnalysis.l.innerHTML = data.l;
 	UI.imageAnalysis.s.innerHTML = data.s;
+}
+
+function getNewAssemblyRequest(){
+    const bottomColor = UI.assemblyRequest.bottomColorSelect.value;
+    const topColor    = UI.assemblyRequest.topColorSelect.value;
+    return {bottomColor, topColor};
 }
