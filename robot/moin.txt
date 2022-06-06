@@ -146,6 +146,8 @@
    
    ; Hadnle Commands
    ; Setting Speed
+   DefaultSpeed  = 50
+   DefaultSpeedL = 25
    SPEED 50
    SPEED 25 MM/S 
    ; Setting approach distances
@@ -169,10 +171,10 @@
    
    POINT TakeDest = P0
    TakeApp  = 0
+   SIGNAL 2010
    ; Take Storage
    IF (TakeStorage > 0) THEN
       TakeApp = StorageApp
-      SIGNAL 2010
       IF (TakeStorage == 1) THEN
          IF (StorageOffset == 0) THEN
             POINT TakeDest = P11
@@ -180,9 +182,11 @@
          END
          IF (StorageOffset == 1) THEN
             POINT TakeDest = P12
+            SIGNAL -2010
          END
          IF (StorageOffset == 2) THEN
             POINT TakeDest = P13
+            SIGNAL -2010
          END
       END
       IF (TakeStorage == 2) THEN
@@ -192,9 +196,11 @@
          END
          IF (StorageOffset == 1) THEN
             POINT TakeDest = P15
+            SIGNAL -2010
          END
          IF (StorageOffset == 2) THEN
             POINT TakeDest = P16
+            SIGNAL -2010
          END
       END
    END
@@ -227,7 +233,10 @@
       SPEED 10
       SPEED 5 MM/S
       LMOVE P21
-      TWAIT 0.2
+      SIGNAL -3
+      TWAIT 0.5
+      SIGNAL 3
+      TWAIT 0.5
       JMOVE P22
       TWAIT 0.2
       SIGNAL -3
@@ -241,10 +250,10 @@
    ; Put
    POINT PutDest = P1
    PutApp  = 0
+   SIGNAL 2010
    ; Put Table
    IF (PutTable > 0) THEN
       PutApp = TableApp
-      SIGNAL 2010
       IF (PutTable == 1) THEN
          POINT PutDest = P20
          SIGNAL -2010
@@ -253,7 +262,6 @@
    ; Put Dispose
    IF (PutDispose > 0) THEN
       PutApp = DisposeApp
-      SIGNAL 2010
       IF (PutDispose == 1) THEN
          POINT PutDest = P31
          SIGNAL -2010
