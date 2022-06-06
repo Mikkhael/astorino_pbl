@@ -17,12 +17,12 @@ void printBinaryUint8(uint8_t val){
 }
 
 class DIOMap{
+public:
   constexpr static int PinsCount = 9;
   constexpr static int OutFunctionsCount = 8+3;
   constexpr static int InFunctionsCount = 10+3;
   constexpr static int GPIOFunctionsCount  = 2;
   constexpr static int FunctionsCount  = OutFunctionsCount+InFunctionsCount+GPIOFunctionsCount;
-public:
   enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt, // 8 DIO
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
@@ -36,14 +36,12 @@ public:
     "Idle", "Ack",  "Grab",
     "GGrab", "GFar1",
     "NONE"};
-private:
   static_assert(static_cast<int>(Function::OMotorOn) == 0);
   static_assert(static_cast<int>(Function::ICycle) == OutFunctionsCount);
   static_assert(static_cast<int>(Function::NONE) == FunctionsCount);
   
   int pcfPinToFunctionMap[PinsCount];
   int functionToPcfPinMap[FunctionsCount];
-public:
   int isInversedGpio[PinsCount];
 
   static constexpr char* getFunctionName(Function function){

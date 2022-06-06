@@ -47,7 +47,7 @@ struct MBServer{
     void addReg(RegName name, TAddress address, OnWrite onWrite = nullptr, OnRead onRead = nullptr){
         int regIndex = static_cast<int>(name);
         mb.addReg(address, (uint16_t)0, 1);
-        mb.onSet(address, [this, type = TAddressToString(address)](TRegister* reg, uint16_t val){
+        mb.onSet(address, [this, onWrite, type = TAddressToString(address)](TRegister* reg, uint16_t val){
             debugWrite(type, reg, val);
             if constexpr(std::is_same_v<OnWrite, nullptr_t>){
                 return val;
@@ -55,7 +55,7 @@ struct MBServer{
                 return onWrite(reg, val);
             }
         });
-        mb.onGet(address, [this, type = TAddressToString(address)](TRegister* reg, uint16_t val){
+        mb.onGet(address, [this, onRead, type = TAddressToString(address)](TRegister* reg, uint16_t val){
             debugRead(type, reg, val);
             if constexpr(std::is_same_v<OnRead, nullptr_t>){
                 return reg->value;

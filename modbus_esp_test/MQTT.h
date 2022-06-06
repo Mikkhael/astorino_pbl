@@ -1,64 +1,126 @@
 #pragma once
-#include "ESP8266WiFi.h"
-#include "Adafruit_MQTT_Client.h"
+#include <PubSubClient.h>
+#include "IOManager.h"
 
 
-
-struct MQTT : public Adafruit_MQTT_Client{
-  WiFiClient wifiClient;
+struct MQTT{
   
-  // Subscribes
-  Adafruit_MQTT_Subscribe sub1(&client, "sub1");
-  Adafruit_MQTT_Subscribe echo_in(&client, "echo/in");
+  WiFiClient clientWiFi;
+  PubSubClient client;
 
-  // Publishes
-  Adafruit_MQTT_Subscribe pub1(&client, "pub1");
-  Adafruit_MQTT_Subscribe echo_out(&client, "echo/out");
+  String id = "ESP-RobotController";
+  String user = "user";
+  String pass = "password";
+  String address;
+  uint16_t port = 1883;
+  int reconnectionTimeout = 5000;
+  int updateInterval = 500;
 
-  MQTT(const char* server, int port, const char* user = "", const char* pass = "")
-    : Adafruit_MQTT_Client(&wifiClient, server, port, user, pass)
-  {}
 
-  void wait_for_connect(){
-    if (this->connected())
-      return;
-    Serial.print("Connecting to MQTT... ");
-    int ret = 0;
-    while ((ret = this->connect()) != 0) {
-         Serial.println(this->connectErrorString(ret));
-         Serial.println("Retrying MQTT connection in 2 seconds...");
-         this->disconnect();
-         delay(2000);
+  MQTT() : client(clientWiFi) {}
+
+  struct Payload{
+    // , 0 = Unconnected, 1 = OFF, 2 = ON
+    uint8_t dio[DIOMap::FunctionsCount]{};
+    uint8_t queueFull = 0;
+    uint8_t queueEmpty = 0;
+
+    // Numbers
+    uint16_t executedCmds = 0;
+    uint16_t executedDebugCmds = 0;
+
+    Payload(){
+      for(int i=0; i<DIOMap::FunctionsCount; i++){
+        dio[i] = 0;
+      }
     }
-    Serial.println("MQTT Connected!");
-  }
 
-  bool try_reconnect(){
-    if (this->connected())
-      return;
-    Serial.print("Reconnecting to MQTT... ");
-    int ret = 0;
-    if ((ret = this->connect()) != 0) {
-         Serial.println(this->connectErrorString(ret));
-         this->disconnect();
-         return false;
+    void populateDio(){
+      for(int i=0; i<DIOMap::OutFunctionsCount; i++){
+        int pin = ioManager.dedicatedOutputs.functionToPcfPinMap[i];
+        if(pin == -1){
+          dio[i] = 0;
+        }else{
+          dio[i] = (ioManager.outState & (1 << pin)) ? 2 : 1;
+        }
+      }
+      for(int i=DIOMap::OutFunctionsCount; i<DIOMap::InFunctionsCount + DIOMap::OutFunctionsCount; i++){
+        int pin = ioManager.dedicatedInputs.functionToPcfPinMap[i];
+        if(pin == -1){
+          dio[i] = 0;
+        }else{
+          dio[i] = (ioManager.lastInState & (1 << pin)) ? 2 : 1;
+        }
+      }
+      for(int i=DIOMap::InFunctionsCount + DIOMap::OutFunctionsCount; i<DIOMap::FunctionsCount; i++){
+        auto function = static_cast<DIOMap::Function>(i);
+        bool val;
+        if(!ioManager.getGpio(function, val)){
+          dio[i] = 0;
+        }else{
+          dio[i] = val ? 2 : 1;
+        }
+      }
     }
-    Serial.println("MQTT Connected!");
-    return true;
-  }
+  } payload;
 
-  void init(){
-    wait_for_connect();
+  static_assert(sizeof(Payload) == DIOMap::FunctionsCount + 2 + 2*2);
+
+  unsigned long lastUpdate = 0;
+  bool trySendUpdate(){
+    if(client.connected() && millis() - lastUpdate > updateInterval){
+      payload.populateDio();
+      //Serial.println("MQTT Sent Update");
+      client.publish("robotstate", (uint8_t*)(&payload), sizeof(payload), false);
+      lastUpdate = millis();
+      return true;
+    }
+    return false;
   }
   
+  unsigned long reconnectionWaitStart = 0;
+  bool tryReconnect(){
+    if(client.connected()){
+      return true;
+    }
+    Serial.println("Attempting MQTT reconnection...");
+    if(client.connect(id.c_str(), user.c_str(), pass.c_str())){
+      onConnect();
+      return true;
+    }
+    Serial.print("MQTT Connection Error: ");
+    Serial.println(client.state());
+    reconnectionWaitStart = millis();
+    return false;
+  }
+
+  void onConnect(){
+    Serial.print("MQTT Connected to ");
+    Serial.println(address);
+  }
+
+  void begin(){
+    client.disconnect();
+    client.setServer(address.c_str(), port);
+    tryReconnect();
+  }
+
+  void end(){
+    client.disconnect();
+  }
+
   void loop(){
-    if(!try_reconnect()){
-      return;
+    if(!client.connected()){
+      if(millis() - reconnectionWaitStart < reconnectionTimeout){
+        return;
+      }
+      if(reconnectionTimeout > 0 && !tryReconnect()){
+        return;
+      }
     }
-    if(!wifiClient.available()){
-      return;
-    }
-    //TODO
+
+    client.loop();
+    trySendUpdate();
   }
-    
+  
 };

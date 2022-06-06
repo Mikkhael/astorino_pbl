@@ -2,10 +2,12 @@
 #include "AstorinoCmdManager.h"
 #include "MBServer.h"
 #include "CommandManager.h"
+#include "MQTT.h"
 
 MBServer mbserver;
 AstorinoCmdManager acm;
 CommandManager cmd;
+MQTT mqtt;
 
 // Network
 #define USE_HOME_NETWORK 0
@@ -64,6 +66,11 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  ////////// MQTT
+  mqtt.address = "192.168.0.239";
+  mqtt.user    = "user";
+  mqtt.pass    = "password";
+  mqtt.begin();
 
   ////////// Modbus
   mbserver.init();  
@@ -74,6 +81,7 @@ void setup() {
   ///////// CMD
   cmd.mbserver = &mbserver;
   cmd.acm      = &acm;
+  cmd.mqtt     = &mqtt;
   acm.init();
 }
  
@@ -83,6 +91,7 @@ void loop() {
   cmd.loop();
   mbserver.loop();
   acm.loop();
+  mqtt.loop();
   
   if(mbserver.requestedReset && acm.cmdQueue.isempty()){
     Serial.println("Resseting communication");
@@ -102,8 +111,12 @@ void loop() {
   mbserver.set(MBServer::RegName::RobotIdle,    acm.isRobotIdle);
   mbserver.set(MBServer::RegName::QueueEmpty,   acm.cmdQueue.isempty());
   mbserver.set(MBServer::RegName::QueueFull,    acm.cmdQueue.isfull());
-  mbserver.set(MBServer::RegName::ExecutedCmds, acm.isRobotIdle);
-  mbserver.set(MBServer::RegName::RobotIdle,    (uint16_t)acm.sender.executedCmds);
+  mbserver.set(MBServer::RegName::ExecutedCmds, (uint16_t)acm.sender.executedCmds);
+
+  mqtt.payload.queueEmpty = acm.cmdQueue.isempty() ? 2 : 1;
+  mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? 2 : 1;
+  mqtt.payload.executedCmds       = acm.sender.executedCmds;
+  mqtt.payload.executedDebugCmds  = acm.sender.executedDebugCmds;
 
     
   //delay(100);

@@ -22,6 +22,10 @@ function handleMqttMessage(topic, payload){
         const data = JSON.parse(payload.asString());
 		tmp = data;
         updateImageAnalysis(data);
+    }else if(topic == "robotstate"){
+        console.log(payload.asString().length);
+        const robotstate = parseMQTT_robotstate(payload.asBytes());
+        console.log(robotstate.GFar1);
     }else{
         console.log(`Unhandled topic:`, topic);
     }
@@ -43,4 +47,35 @@ function sendNewAssemblyRequest(bottomColor, topColor){
 function performNewAssemblyRequest(){
     const request = getNewAssemblyRequest();
     sendNewAssemblyRequest(request.bottomColor, request.topColor);
+}
+
+
+const Mqtt_robotstate_labels_uint8 = [
+    "OMotorOn", "CycleStart", "Reset", "OHold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
+    "Send", "Cmd1", "Cmd2",
+    "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
+    "Idle", "Ack",  "Grab",
+    "GGrab", "GFar1",
+    "QueueFull", "QueueEmpty"
+];
+const Mqtt_robotstate_labels_uint16 = [
+    "ExecutedCmds", "ExecutedDebugCmds"
+];
+
+/**
+ * @param {Uint8Array} payload 
+ */
+function parseMQTT_robotstate(payload){
+    let res = {};
+    const payload_buf = payload.buffer;
+    const view = new DataView(payload_buf, payload.byteOffset);
+    for(let i = 0; i<Mqtt_robotstate_labels_uint8.length; i++){
+        const val = view.getUint8(i);
+        if(val == 0) continue;
+        res[Mqtt_robotstate_labels_uint8[i]] = (val == 2);
+    }
+    for(let i = 0; i<Mqtt_robotstate_labels_uint16.length; i++){
+        res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(i + Mqtt_robotstate_labels_uint8.length, true);
+    }
+    return res;
 }

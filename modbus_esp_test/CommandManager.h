@@ -2,6 +2,7 @@
 #include "IOManager.h"
 #include "MBServer.h"
 #include "AstorinoCmdManager.h"
+#include "MQTT.h"
 
 const char* HELP_STR =
 "==== HELP ==== \n"
@@ -28,6 +29,8 @@ const char* HELP_STR =
 "dag name pin [inv]    - assigns a GPIO pin to a name\n"
 "demo (0|1)            - set DEMO mode\n"
 "stopsend              - aborts sending cmd\n"
+"mqttupd ms            - set Mqtt update interval (in ms)\n"
+"mqttrec ms            - set Mqtt reconnect timeout (in ms)\n"
 "=====\n";
 
 
@@ -36,6 +39,7 @@ struct CommandManager
 
   MBServer* mbserver;
   AstorinoCmdManager* acm;
+  MQTT* mqtt;
 
   constexpr static int MAX_ARGS = 4;
   String argsBuffer[MAX_ARGS];
@@ -254,6 +258,16 @@ struct CommandManager
       Serial.println("Aborting transfer\n");
       acm->abort();
       ioManager.setupPins();
+    }
+    else if(args[0] == "mqttupd"){
+      int val = args[1].toInt();
+      Serial.printf("Setting MQTT Update Interval to %dms\n", val);
+      mqtt->updateInterval = val;      
+    }
+    else if(args[0] == "mqttrec"){
+      int val = args[1].toInt();
+      Serial.printf("Setting MQTT Reconnection Timeout to %dms\n", val);
+      mqtt->reconnectionTimeout = val;      
     }
     else{
       Serial.println("Unknown command");

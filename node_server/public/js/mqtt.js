@@ -27,6 +27,7 @@ function MQTT_createClientAndConnect(){
             mqttClient.subscribe("img/jpeg");
             mqttClient.subscribe("test");
             mqttClient.subscribe("analysis");
+            mqttClient.subscribe("robotstate");
         },
         onFailure: (err) => {
             console.error("[MQTT] Connection Failed", err);
