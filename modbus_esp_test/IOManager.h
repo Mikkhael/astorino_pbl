@@ -21,20 +21,20 @@ public:
   constexpr static int PinsCount = 9;
   constexpr static int OutFunctionsCount = 8+3;
   constexpr static int InFunctionsCount = 10+3;
-  constexpr static int GPIOFunctionsCount  = 2;
+  constexpr static int GPIOFunctionsCount  = 4;
   constexpr static int FunctionsCount  = OutFunctionsCount+InFunctionsCount+GPIOFunctionsCount;
   enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt, // 8 DIO
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
                               IIdle, IAck, IGrab,                                                               // 3 Custom
-                             GGrab, GFar1,                                                                      // 2 GPIO
+                             GGrab, GFar1, GTens, GIsGrabbed,                                                   // 4 GPIO
                              NONE};
   constexpr static char* FunctionNames[FunctionsCount+1] {
     "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
     "Send", "Cmd1", "Cmd2",
     "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
     "Idle", "Ack",  "Grab",
-    "GGrab", "GFar1",
+    "GGrab", "GFar1", "GTens", "GIsGrabbed",
     "NONE"};
   static_assert(static_cast<int>(Function::OMotorOn) == 0);
   static_assert(static_cast<int>(Function::ICycle) == OutFunctionsCount);
@@ -156,6 +156,8 @@ struct IOManager{
 
       dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GGrab, 5, true);
       dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GFar1, 6, true);
+      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GIsGrabbed, 7, true);
+      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GTens, 8, false);
       
     }
 

@@ -1,0 +1,318 @@
+.PROGRAM moin
+   ; Configuration
+   TOOL 2
+   PinIdle = 1
+   PinAck  = 2
+   PinGrab = 3
+   PinCmdA = 1001
+   PinCmdB = 1002
+   PinSend = 1008
+   ; Variables Init
+   CmdWordA = 0
+   CurrentBitPower = 1
+   unknown = 1
+   alt = 1
+   dummy = 1
+   ; Receiving Command
+   SIGNAL  2    ; Set Ack  to 0
+   SIGNAL -1    ; Set Idle to 1
+   SIGNAL  2001 ; Waiting for command
+   FOR bit = 0 TO 8
+      alt = 0-alt
+      awaitsend = (1+alt)/2
+      SIGNAL 2002 ; Waiting for next Part
+      WHILE ((SIG(1008)) == awaitsend) DO
+         dummy = 1 - dummy
+         TWAIT 0.2
+      END
+      SIGNAL -2002 ; Received Next Part
+      SIGNAL 1 ; Set Idle to 0
+      ValueA = 0 + (SIG(1001))
+      ValueB = 0 + (SIG(1002))
+      CmdWordA = CmdWordA + ValueA * CurrentBitPower * 1
+      CmdWordA = CmdWordA + ValueB * CurrentBitPower * 2
+      CurrentBitPower = CurrentBitPower * 4
+      SIGNAL 2*alt ; Set Ack
+   END
+   SIGNAL -2001 ; Received Full Command
+   ; Main Program
+   ; Parsing commands
+   StorageOffset = 0
+   ; 0 none
+   ; 1 on
+   ; 2 off
+   ForceGrabber = 0
+   ; 0 none
+   ; 1 assemble
+   ; 2 disassemble
+   AssembleTop = 0
+   ; 0 none
+   ; 1 bottom
+   ; 2 top
+   ; 3 both
+   TakeStorage = 0
+   TakeTable   = 0
+   PutTable    = 0
+   PutDispose  = 0
+   PutDone     = 0
+   ; 0 Go Home before Put
+   ; 1 Go Safe before Put
+   ; 2 Nothing
+   HomeBeforePut = 0
+   ; Main Commands
+   ; Bottom from Storage to Table
+   IF (CmdWordA < 5) THEN
+      TakeStorage = 1
+      PutTable = 1
+      StorageOffset = CmdWordA
+   END
+   ; Top from Storage to Assemble
+   IF ((CmdWordA >= 5) * (CmdWordA < 10)) THEN
+      TakeStorage = 2
+      AssembleTop = 1
+      StorageOffset = (CmdWordA - 5)
+   END
+   ; Both from Table to Done
+   IF ((CmdWordA >= 10) * (CmdWordA < 14)) THEN
+      TakeTable = 3
+      PutDone   = 3
+      HomeBeforePut = 2
+   END
+   ; Discard
+   IF ((CmdWordA >= 15) * (CmdWordA < 20)) THEN
+      HomeBeforePut = 2
+      ; Bottom from Table to Discard
+      IF (CmdWordA == 15) THEN
+         TakeTable  = 1
+         PutDispose = 1
+      END
+      ; Top Assembled from Table to Discard
+      IF (CmdWordA == 16) THEN
+         AssembleTop = 2
+         PutDispose  = 2
+      END
+      ; Both from Table to Discard
+      IF (CmdWordA == 17) THEN
+         TakeTable  = 3
+         PutDispose = 3
+      END
+   END
+   ; Additional Commands
+   ; Grabber
+   IF (CmdWordA == 50) THEN
+      ForceGrabber = 1
+   END
+   IF (CmdWordA == 51) THEN
+      ForceGrabber = 2
+   END
+   ; Take Storage
+   IF ((CmdWordA >= 100) * (CmdWordA < 105)) THEN
+      TakeStorage = 1
+      StorageOffset = (CmdWordA - 100)
+   END
+   IF ((CmdWordA >= 105) * (CmdWordA < 110)) THEN
+      TakeStorage = 2
+      StorageOffset = (CmdWordA - 105)
+   END
+   ; Take Table
+   IF ((CmdWordA >= 110) * (CmdWordA < 113)) THEN
+      TakeTable = (CmdWordA - 109)
+   END
+   ; Put Table
+   IF ((CmdWordA >= 120) * (CmdWordA < 123)) THEN
+      PutTable  = (CmdWordA - 119)
+   END
+   ; Discard
+   IF ((CmdWordA >= 130) * (CmdWordA < 133)) THEN
+      PutDispose = (CmdWordA - 129)
+   END
+   ; Done
+   IF ((CmdWordA >= 140) * (CmdWordA < 143)) THEN
+      PutDone = (CmdWordA - 139)
+   END
+   ; Assemble
+   IF ((CmdWordA >= 150) * (CmdWordA < 152)) THEN
+      PutDone = (CmdWordA - 149)
+   END
+   ; Log Command
+   logB = 80000
+   logC = 90000
+   logB = logB + TakeStorage * 1
+   logB = logB + TakeTable * 10
+   logB = logB + StorageOffset * 100
+   logB = logB + ForceGrabber * 1000
+   logC = logC + AssembleTop * 1
+   logC = logC + PutTable * 10
+   logC = logC + PutDispose * 100
+   logC = logC + PutDone * 1000
+   PRINT 777777
+   TWAIT 0.1
+   PRINT CmdWordA
+   TWAIT 0.1
+   PRINT logB
+   TWAIT 0.1
+   PRINT logC
+   
+   ; Hadnle Commands
+   ; Setting Speed
+   DefaultSpeed  = 50
+   DefaultSpeedL = 25
+   SPEED 50
+   SPEED 25 MM/S 
+   ; Setting approach distances
+   StorageApp = 50
+   TableApp   = 50
+   AssembleApp= 30
+   DisposeApp = 1
+   DoneApp    = 50
+   
+   ; Grabber
+   IF (ForceGrabber == 1) THEN
+      SIGNAL 3
+      unknown = 0
+   END
+   IF (ForceGrabber == 2) THEN
+      SIGNAL -3
+      unknown = 0
+   END
+   
+   ; Take
+   
+   POINT TakeDest = P0
+   TakeApp  = 0
+   SIGNAL 2010
+   ; Take Storage
+   IF (TakeStorage > 0) THEN
+      TakeApp = StorageApp
+      IF (TakeStorage == 1) THEN
+         IF (StorageOffset == 0) THEN
+            POINT TakeDest = P11
+            SIGNAL -2010
+         END
+         IF (StorageOffset == 1) THEN
+            POINT TakeDest = P12
+            SIGNAL -2010
+         END
+         IF (StorageOffset == 2) THEN
+            POINT TakeDest = P13
+            SIGNAL -2010
+         END
+      END
+      IF (TakeStorage == 2) THEN
+         IF (StorageOffset == 0) THEN
+            POINT TakeDest = P14
+            SIGNAL -2010
+         END
+         IF (StorageOffset == 1) THEN
+            POINT TakeDest = P15
+            SIGNAL -2010
+         END
+         IF (StorageOffset == 2) THEN
+            POINT TakeDest = P16
+            SIGNAL -2010
+         END
+      END
+   END
+   ; Take Table
+   IF (TakeTable == 1) THEN
+      TakeApp = TableApp
+      POINT TakeDest = P20
+      SIGNAL -2010
+   END
+   IF (TakeTable == 3) THEN
+      TakeApp = TableApp
+      POINT TakeDest = SHIFT( P22 BY 0,0,-6)
+      SIGNAL -2010
+   END
+   
+   IF ((TakeApp > 0) * ((SIG(2010)) == 0)) THEN
+      SIGNAL -3
+      JAPPRO TakeDest, TakeApp
+      LMOVE TakeDest
+      SIGNAL 3
+      TWAIT 0.2
+      LDEPART TakeApp
+      unknown = 0
+   END
+   
+   ; Optional Homing
+   IF (HomeBeforePut == 0) THEN
+      HOME
+   END
+   
+   ; Assembly
+   IF (AssembleTop == 1) THEN
+      JAPPRO P21, AssembleApp
+      SPEED 10
+      SPEED 5 MM/S
+      LMOVE P21      
+      SIGNAL -3 ; Release Top to make it go in
+      TWAIT 0.5
+      SIGNAL 3  ; Grab Top
+      TWAIT 0.5
+      JMOVE P22 ; Rotate Top
+      TWAIT 0.2
+      SIGNAL -3 ; Release Top
+      TWAIT 0.2
+      SPEED 50
+      SPEED 25 MM/S
+      LDEPART TableApp
+   END
+   
+   ; Put
+   POINT PutDest = P1
+   PutApp  = 0
+   SIGNAL 2010
+   ; Put Table
+   IF (PutTable > 0) THEN
+      PutApp = TableApp
+      IF (PutTable == 1) THEN
+         POINT PutDest = P20
+         SIGNAL -2010
+      END
+   END
+   ; Put Dispose
+   IF (PutDispose > 0) THEN
+      PutApp = DisposeApp
+      IF (PutDispose == 1) THEN
+         POINT PutDest = P31
+         SIGNAL -2010
+      END
+      IF (PutDispose == 2) THEN
+         POINT PutDest = P32
+         SIGNAL -2010
+      END
+      IF (PutDispose == 3) THEN
+         POINT PutDest = P33
+         SIGNAL -2010
+      END
+   END
+   ; Put Done
+   IF (PutDone > 0) THEN
+      PutApp = DoneApp
+      POINT PutDest = P30
+      SIGNAL -2010
+   END
+   
+   ; Optional Homing
+   IF (HomeBeforePut == 0) THEN
+      HOME
+   END
+   IF (HomeBeforePut == 1) THEN
+      HOME ; TODO safe
+   END
+   
+   IF ((PutApp > 0) * ((SIG(2010)) == 0)) THEN
+      JAPPRO PutDest, PutApp
+      LMOVE PutDest
+      SIGNAL -3
+      LDEPART PutApp
+      HOME ; TODO safe
+      unknown = 0
+   END
+   
+   IF unknown == 1 THEN
+      TWAIT 2
+   END
+   SIGNAL -1 ; Set Idle to 1
+.END 
