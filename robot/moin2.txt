@@ -7,6 +7,8 @@
    PinCmdA = 1001
    PinCmdB = 1002
    PinSend = 1008
+   DefaultSpeed  = 40
+   DefaultSpeedL = 20
    ; Variables Init
    CmdWordA = 0
    CurrentBitPower = 1
@@ -155,10 +157,8 @@
    
    ; Hadnle Commands
    ; Setting Speed
-   DefaultSpeed  = 50
-   DefaultSpeedL = 25
-   SPEED 50
-   SPEED 25 MM/S 
+   SPEED DefaultSpeed
+   SPEED DefaultSpeedL MM/S 
    ; Setting approach distances
    StorageApp = 50
    TableApp   = 50
@@ -229,6 +229,9 @@
       SIGNAL -3
       JAPPRO TakeDest, TakeApp
       LMOVE TakeDest
+      IF (TakeStorage > 0) THEN
+         TDRAW 0,-10,0
+      END
       SIGNAL 3
       TWAIT 0.2
       LDEPART TakeApp
@@ -254,8 +257,8 @@
       TWAIT 0.2
       SIGNAL -3 ; Release Top
       TWAIT 0.2
-      SPEED 50
-      SPEED 25 MM/S
+      SPEED DefaultSpeed
+      SPEED DefaultSpeedL MM/S
       LDEPART TableApp
    END
    
