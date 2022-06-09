@@ -31,6 +31,7 @@ const char* HELP_STR =
 "stopsend              - aborts sending cmd\n"
 "mqttupd ms            - set Mqtt update interval (in ms)\n"
 "mqttrec ms            - set Mqtt reconnect timeout (in ms)\n"
+"mqttaddr addr         - set Mqtt address\n"
 "=====\n";
 
 
@@ -268,6 +269,12 @@ struct CommandManager
       int val = args[1].toInt();
       Serial.printf("Setting MQTT Reconnection Timeout to %dms\n", val);
       mqtt->reconnectionTimeout = val;      
+    }
+    else if(args[0] == "mqttaddr"){
+      Serial.printf("Setting MQTT Address to %s\n", args[1].c_str());
+      mqtt->address = args[1];
+      mqtt->end();
+      mqtt->begin();      
     }
     else{
       Serial.println("Unknown command");

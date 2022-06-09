@@ -73,6 +73,11 @@ class Modbus extends jsmodbus.client.TCP{
         this.onPollError = function(err){console.log("Err", err)};
     }
 
+    /**
+     * 
+     * @param {number} bottomColor 
+     * @param {number} topColor 
+     */
     enqueueRequest(bottomColor, topColor){
         this.assemblyQueue.push({bottomColor, topColor});
     }

@@ -123,9 +123,9 @@ struct MBServer{
         });
 
         /// ISTS
-        addReg(RegName::RobotIdle,  COIL(100));
-        addReg(RegName::QueueEmpty, COIL(102));
-        addReg(RegName::QueueFull,  COIL(103));
+        addReg(RegName::RobotIdle,  ISTS(100));
+        addReg(RegName::QueueEmpty, ISTS(102));
+        addReg(RegName::QueueFull,  ISTS(103));
 
         /// IREG
         addReg(RegName::ExecutedCmds,  IREG(101));

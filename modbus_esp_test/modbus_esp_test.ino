@@ -67,7 +67,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   ////////// MQTT
-  mqtt.address = "192.168.0.239";
+  mqtt.address = "raspberrypi";
   mqtt.user    = "user";
   mqtt.pass    = "password";
   mqtt.begin();

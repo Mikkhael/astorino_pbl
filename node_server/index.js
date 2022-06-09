@@ -155,8 +155,8 @@ function handleMqttMessage(topic, payload){
 
   }else if(topic == "assemblyRequest"){
     const request = JSON.parse(payload.toString());
-    request.bottomColor = request.bottomColor || 0;
-    request.topColor = request.topColor || 0;
+    request.bottomColor = +request.bottomColor || 0;
+    request.topColor = +request.topColor || 0;
     console.log(`Received new Assembly Request for colors:`, request);
     mbclient.enqueueRequest(request.bottomColor, request.topColor);
 
