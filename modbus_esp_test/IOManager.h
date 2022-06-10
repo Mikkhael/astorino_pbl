@@ -357,7 +357,7 @@ struct IOManager{
     bool setCmd(uint8_t cmd){
       dio.write(DIO::Function::OCmd1, cmd & 0x01, false, false);
       if(CmdPinsCount >= 2)
-        dio.write(DIO::Function::OCmd1, cmd & 0x02, false, false);
+        dio.write(DIO::Function::OCmd2, cmd & 0x02, false, false);
       return refreshOutState();
     }
 
@@ -380,8 +380,8 @@ struct IOManager{
           }
         }
       };
-      Serial.println("======== Pcf -> Robot ======="); show(outModule,  1);
-      Serial.println("======== Robot -> Pcf ======="); show(inModule,   0);
+      Serial.println("======== Robot -> Pcf ======="); show(outModule,   1);
+      Serial.println("======== Pcf -> Robot ======="); show(inModule,  0);
       Serial.println("========     GPIO     ======="); show(gpioModule, 2);
     }
     
@@ -402,8 +402,8 @@ struct IOManager{
    }
    
    void loop(){
-    refreshOutState();
-    bool success = refreshInState();
+    refreshOutState(false);
+    bool success = refreshInState(false);
 
     if(success){
       dio.write(DIO::Function::GGrab, dio.readVal(DIO::Function::IGrab, false));
