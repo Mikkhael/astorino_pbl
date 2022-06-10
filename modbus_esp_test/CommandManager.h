@@ -230,7 +230,7 @@ struct CommandManager
           int pin = args[2][1]- '1';
           bool inv = args[4] == "inv";
           int dpin = IOManager::GPIOPinsMap[pin];
-          Serial.printf("Assigning pin %d (D%d) [Input: %d, Inv: %d] to function %s\n", pin, dpin, isInput, inv, args[1]);
+          Serial.printf("Assigning pin %d (D%d) [Input: %d, Inv: %d] to function %s\n", pin, dpin, isInput, inv, args[1].c_str());
           ioManager.dio.assignFunctionToPin(function,
              isInput ? DIO::PinMode::Input : DIO::PinMode::Output,
              false,
@@ -240,7 +240,7 @@ struct CommandManager
           int pin = args[2].toInt();
           int  pcfPin  = IOManager::RobotToPcfPin(pin);
           bool inv = isInput ? ioManager.invertedInput : ioManager.invertedOutput;
-          Serial.printf("Assigning pin %d (%d) [Input: %d, Inv: %d] to function %s\n", pcfPin, pin, isInput, inv, args[1]);
+          Serial.printf("Assigning pin %d (%d) [Input: %d, Inv: %d] to function %s\n", pcfPin, pin, isInput, inv, args[1].c_str());
           ioManager.dio.assignFunctionToPin(function,
              isInput ? DIO::PinMode::Input : DIO::PinMode::Output,
              inv,

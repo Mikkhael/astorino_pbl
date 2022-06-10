@@ -37,7 +37,7 @@ struct DIO{
                              GGrab, GFar1, GTens, GGrabbed,                                                   // 4 GPIO
                              NONE};
 
-  constexpr static char* FunctionNames[FunctionsCount+1] {
+  constexpr static const char* FunctionNames[FunctionsCount+1] {
     "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
     "Send", "Cmd1", "Cmd2",
     "IsCycle", "IsRepeat", "IsTeach", "IsMotorOn", "ESTOP", "IsReady", "IsError", "IsHold", "IsHome", "IsZeroed",
@@ -45,7 +45,7 @@ struct DIO{
     "GGrab", "GFar1", "GTens", "GGrabbed",
     "NONE"};
 
-  static constexpr char* getFunctionName(DIO::Function function){
+  static constexpr const char* getFunctionName(DIO::Function function){
     return FunctionNames[toint(function)];
   }
   static constexpr Function getFunctionFromIndex(int i){
@@ -102,7 +102,7 @@ struct DIO{
     int read(int pin, bool* out, bool fresh = true, bool raw = false){
       int res = 0;
       if(fresh || forceFreshAndFlush){
-        int res = read_new_raw(pin, this);
+        res = read_new_raw(pin, this);
       }
       *out = getbit(lastInState, pin);
       if(!raw && isInverted[pin])
@@ -140,18 +140,20 @@ struct DIO{
   FunctionMapping functionToPinMapping[FunctionsCount];
   FunctionMapping& getMapping(DIO::Function function) {return functionToPinMapping[toint(function)]; };
   
-  void disassignFunction(DIO::Function function, DIO::PinMode mode, bool inverted, DIO::Type type, int pin){
+  void disassignFunction(DIO::Function function){
     auto& mapping = functionToPinMapping[toint(function)];
     if(mapping.type != DIO::Type::NONE){
       getModule(mapping.type).setPin(mapping.pin);
     }
+    functionToPinMapping[toint(function)] = {DIO::Type::NONE, 0};
   }
   void assignFunctionToPin(DIO::Function function, DIO::PinMode mode, bool inverted, DIO::Type type, int pin){
     auto& mapping = functionToPinMapping[toint(function)];
     if(mapping.type != DIO::Type::NONE){
       getModule(mapping.type).setPin(mapping.pin);
     }
-    getModule(mapping.type).setPin(pin, mode, function, inverted);
+    getModule(type).setPin(pin, mode, function, inverted);
+    functionToPinMapping[toint(function)] = {type, pin};
   }
 
   void onUnassignedFunction(DIO::Function function, bool fromRead){
@@ -249,6 +251,8 @@ struct IOManager{
 
     auto createPcfWriteFunction(uint8_t address, int pcfStateIndex, bool isInputModule = false){
       return [address, &pcfState = this->pcfStates[pcfStateIndex], isInputModule](int pin, bool val, DIO::Module* module){
+        (void) pin;
+        (void) val;
         if(pcfState.isHalted){
           return pcfState.lastErrorWrite = 0;
         }
@@ -272,6 +276,7 @@ struct IOManager{
     }
     auto createPcfReadFunction(uint8_t address, int pcfStateIndex){
       return [address, &pcfState = this->pcfStates[pcfStateIndex]](int pin, DIO::Module* module){
+        (void) pin;
         if(pcfState.isHalted){
           return pcfState.lastErrorRead = 0;
         }
@@ -303,12 +308,13 @@ struct IOManager{
       
       dio.getModule(DIO::Type::GPIO).read_new_raw  = [](int pin, DIO::Module* module) {
         int dpin = GPIOPinsMap[pin];
-        setbit(module->lastInState, pin, digitalRead(dpin));
+        setbit(module->lastInState, dpin, digitalRead(dpin));
         return 0;
       };
       dio.getModule(DIO::Type::GPIO).write_new_raw = [](int pin, bool val, DIO::Module* module) {
+        (void) module;
         int dpin = GPIOPinsMap[pin];
-        digitalWrite(pin, val);
+        digitalWrite(dpin, val);
         return 0;
       };
 
@@ -366,11 +372,11 @@ struct IOManager{
           auto func = module.pinFunctions[i];
           if(func != DIO::Function::NONE){
             Serial.printf("%s %s [%d (%d)]\t = %d\n",
-              module.pinModes[i] == DIO::PinMode::Input ? "IN: " : "OUT:"),
+              module.pinModes[i] == DIO::PinMode::Input ? "IN: " : "OUT:",
               DIO::getFunctionName(module.pinFunctions[i]),
               i,
               addInfo != 2 ? PcfToRobotPin(i, addInfo == 1) : GPIOPinsMap[i],
-              module.readVal(i);
+              module.readVal(i));
           }
         }
       };

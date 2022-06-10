@@ -14,8 +14,8 @@ struct MQTT{
   String pass = "password";
   String address;
   uint16_t port = 1883;
-  int reconnectionTimeout = 5000;
-  int updateInterval = 500;
+  unsigned long reconnectionTimeout = 5000;
+  unsigned long updateInterval = 500;
 
 
   MQTT() : client(clientWiFi) {}

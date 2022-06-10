@@ -111,6 +111,7 @@ struct MBServer{
 
         /// HREG
         addReg(RegName::Cmd, HREG(100), [this](TRegister* reg, uint16_t val){
+            (void) reg;
             newCmd = val;
             return val;
         });
@@ -119,6 +120,7 @@ struct MBServer{
 
         /// COIL
         addReg(RegName::Reset, COIL(101), [this](TRegister* reg, uint16_t val){
+            (void) reg;
             requestedReset = true;
             return val;
         });
