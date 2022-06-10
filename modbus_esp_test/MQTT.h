@@ -1,5 +1,6 @@
 #pragma once
 #include <PubSubClient.h>
+#include "ESP8266WiFi.h"
 #include "IOManager.h"
 
 
@@ -21,7 +22,7 @@ struct MQTT{
 
   struct Payload{
     // , 0 = Unconnected, 1 = OFF, 2 = ON
-    uint8_t dio[DIOMap::FunctionsCount]{};
+    uint8_t dio[DIO::FunctionsCount]{};
     uint8_t queueFull = 0;
     uint8_t queueEmpty = 0;
 
@@ -30,41 +31,20 @@ struct MQTT{
     uint16_t executedDebugCmds = 0;
 
     Payload(){
-      for(int i=0; i<DIOMap::FunctionsCount; i++){
+      for(int i=0; i<DIO::FunctionsCount; i++){
         dio[i] = 0;
       }
     }
 
     void populateDio(){
-      for(int i=0; i<DIOMap::OutFunctionsCount; i++){
-        int pin = ioManager.dedicatedOutputs.functionToPcfPinMap[i];
-        if(pin == -1){
-          dio[i] = 0;
-        }else{
-          dio[i] = (ioManager.outState & (1 << pin)) ? 2 : 1;
-        }
-      }
-      for(int i=DIOMap::OutFunctionsCount; i<DIOMap::InFunctionsCount + DIOMap::OutFunctionsCount; i++){
-        int pin = ioManager.dedicatedInputs.functionToPcfPinMap[i];
-        if(pin == -1){
-          dio[i] = 0;
-        }else{
-          dio[i] = (ioManager.lastInState & (1 << pin)) ? 2 : 1;
-        }
-      }
-      for(int i=DIOMap::InFunctionsCount + DIOMap::OutFunctionsCount; i<DIOMap::FunctionsCount; i++){
-        auto function = static_cast<DIOMap::Function>(i);
-        bool val;
-        if(!ioManager.getGpio(function, val)){
-          dio[i] = 0;
-        }else{
-          dio[i] = val ? 2 : 1;
-        }
+      for(int i=0; i<DIO::FunctionsCount; i++){
+        auto state = ioManager.dio.readState(DIO::getFunctionFromIndex(i));
+        dio[i] = uint8_t(state);
       }
     }
   } payload;
 
-  static_assert(sizeof(Payload) == DIOMap::FunctionsCount + 2 + 2*2);
+  static_assert(sizeof(Payload) == DIO::FunctionsCount + 2 + 2*2);
 
   unsigned long lastUpdate = 0;
   bool trySendUpdate(){

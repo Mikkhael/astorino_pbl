@@ -32,6 +32,7 @@ struct MBServer{
             case TAddress::ISTS: return "ISTS";
             case TAddress::IREG: return "IREG";
         }
+        return "";
     }
 
     enum class RegName : int {

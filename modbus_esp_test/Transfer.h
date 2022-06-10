@@ -46,9 +46,9 @@ public:
     }
 
     void outputMsgSingle(){
-        ioManager.setSend(false);
+        ioManager.dio.write(DIO::Function::OSend, false);
         ioManager.setCmd(msgToSend.parts[0]);
-        ioManager.setSend(true);
+        ioManager.dio.write(DIO::Function::OSend, true);
         awaitAck = false;
         debugf("Await !IDLE.\n");
     }
@@ -59,7 +59,7 @@ public:
         return msgToSend.parts[part] & (1 << bit);
     }
     void outputCurrentMsgPart(bool invert = false){
-        ioManager.setSend(invert);
+        ioManager.dio.write(DIO::Function::OSend, invert);
         uint8_t cmdPart = 0;
         for(int i=0; i<ioManager.CmdPinsCount && currentBit < bitsToSend; i++){
             auto bitValue = getMsgBit(currentBit);
@@ -68,7 +68,7 @@ public:
             ++currentBit;
         }
         ioManager.setCmd(cmdPart);
-        ioManager.setSend(!invert);
+        ioManager.dio.write(DIO::Function::OSend, !invert);
         awaitAck = !invert;
         if(invert)
           debugf("Send = 0, Await !ACK\n");
@@ -108,7 +108,7 @@ public:
     }
     
     void loop(){
-        robotIdle = ioManager.readIdle(false);
+        robotIdle = ioManager.dio.readVal(DIO::Function::IIdle, false);
         if(awaitForIdle && robotIdle){
           awaitForIdle = false;
           if(wasLastMessageDebug){
@@ -140,15 +140,15 @@ public:
             if(awaitAck && robotIdle){
                 outputMsgSingle();
             }else if(!awaitAck && !robotIdle){
-                ioManager.setSend(false);
+                ioManager.dio.write(DIO::Function::OSend, false);
                 state = State::Idle;
                 debugf("Finished transmision.\n");
                 awaitForFinish();
             }
         } else if(state == State::Advanced){
-            bool robotAck = ioManager.readAck();
+            bool robotAck = ioManager.dio.readVal(DIO::Function::IAck);
             if(awaitAck && robotAck){
-                ioManager.setSend(false);
+                ioManager.dio.write(DIO::Function::OSend, false);
                 awaitAck = false;
                 debugf("Send = 0, Await !ACK\n");
             }else if(!awaitAck && !robotAck){
@@ -162,7 +162,7 @@ public:
                 }
             }
         } else if(state == State::Alternating){
-            bool robotAck = ioManager.readAck();
+            bool robotAck = ioManager.dio.readVal(DIO::Function::IAck);
             if(awaitAck == robotAck){
                 if(currentBit >= bitsToSend){
                     state = State::Idle;

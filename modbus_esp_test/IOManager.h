@@ -9,6 +9,13 @@ static void setbit(T& var, int pin, bool val){
       var &= ~(1 << pin);
     }
 }
+template<typename T>
+static bool getbit(const T& var, int pin){
+  return var & (1 << pin);
+}
+
+template<typename T>
+constexpr int toint(const T& t) {return static_cast<int>(t);};
 
 void printBinaryUint8(uint8_t val){
   for(int i=0; i<8; i++){
@@ -16,8 +23,8 @@ void printBinaryUint8(uint8_t val){
   }
 }
 
-class DIOMap{
-public:
+struct DIO{
+
   constexpr static int PinsCount = 9;
   constexpr static int OutFunctionsCount = 8+3;
   constexpr static int InFunctionsCount = 10+3;
@@ -27,69 +34,170 @@ public:
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
                               IIdle, IAck, IGrab,                                                               // 3 Custom
-                             GGrab, GFar1, GTens, GIsGrabbed,                                                   // 4 GPIO
+                             GGrab, GFar1, GTens, GGrabbed,                                                   // 4 GPIO
                              NONE};
+
   constexpr static char* FunctionNames[FunctionsCount+1] {
     "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
     "Send", "Cmd1", "Cmd2",
-    "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
+    "IsCycle", "IsRepeat", "IsTeach", "IsMotorOn", "ESTOP", "IsReady", "IsError", "IsHold", "IsHome", "IsZeroed",
     "Idle", "Ack",  "Grab",
-    "GGrab", "GFar1", "GTens", "GIsGrabbed",
+    "GGrab", "GFar1", "GTens", "GGrabbed",
     "NONE"};
+
+  static constexpr char* getFunctionName(DIO::Function function){
+    return FunctionNames[toint(function)];
+  }
+  static constexpr Function getFunctionFromIndex(int i){
+    return static_cast<DIO::Function>(i);
+  }
+  static Function getFunctionFromName(String str){
+    int i=0;
+    for(i=0; i<FunctionsCount; i++){
+      if(str == FunctionNames[i]){
+        break;
+      }
+    }
+    return getFunctionFromIndex(i);
+  }
+
+  constexpr static int TypesCount = 3;
+  enum class Type: int {RobotIn, RobotOut, GPIO, NONE};
+  
+  enum class PinMode {Unused, Input, Output};
+  
   static_assert(static_cast<int>(Function::OMotorOn) == 0);
   static_assert(static_cast<int>(Function::ICycle) == OutFunctionsCount);
   static_assert(static_cast<int>(Function::NONE) == FunctionsCount);
+  static_assert(static_cast<int>(Type::RobotIn) == 0);
+  static_assert(static_cast<int>(Type::NONE) == TypesCount);
   
-  int pcfPinToFunctionMap[PinsCount];
-  int functionToPcfPinMap[FunctionsCount];
-  int isInversedGpio[PinsCount];
-
-  static constexpr char* getFunctionName(Function function){
-    return FunctionNames[static_cast<int>(function)];
-  }
-  static Function getFunctionFromName(String name, int type){
-    for(int i = type == 1 ? OutFunctionsCount : (type == 2 ? (OutFunctionsCount+InFunctionsCount) : 0); i < FunctionsCount; i++){
-      if(name == FunctionNames[i])
-        return static_cast<Function>(i);
+  struct Module{
+    static constexpr int MaxPinsCount = 10;
+    int PinsCount = 0;
+    uint16_t lastInState = 0;
+    uint16_t outState = 0;
+    DIO::PinMode pinModes[MaxPinsCount];
+    DIO::Function pinFunctions[MaxPinsCount];
+    bool isInverted[MaxPinsCount];
+    Module(){
+      for(int i=0; i<MaxPinsCount; i++){
+        pinModes[i] = PinMode::Unused;
+        pinFunctions[i] = DIO::Function::NONE;
+      }
     }
-    return Function::NONE;
-  }
-  static Function getFunctionFromName(String name, bool isInput){
-    return getFunctionFromName(name, isInput ? 1 : 0);
-  }
-  static void printFunction(Function function){
-    Serial.print(getFunctionName(function));
-  }
-
-  int getPcfPin(Function function){
-    return functionToPcfPinMap[static_cast<int>(function)];
-  }
-  Function getFunction(int pcfPin){
-    return static_cast<Function>(pcfPinToFunctionMap[pcfPin]);
-  }
-
-  DIOMap(){
-    for(int i=0; i<PinsCount; i++){
-      pcfPinToFunctionMap[i] = static_cast<int>(Function::NONE);
-      isInversedGpio[i] = false;
+    void setPin(int pin, DIO::PinMode mode = DIO::PinMode::Unused, DIO::Function function = DIO::Function::NONE, bool inverted = false){
+      if(pin >= PinsCount){
+        return;
+      }
+      pinModes[pin] = mode;
+      pinFunctions[pin] = function;
+      isInverted[pin] = inverted;
     }
-    for(int i=0; i<FunctionsCount; i++){
-      functionToPcfPinMap[i] = -1;
+
+    bool forceFreshAndFlush = false;
+    std::function<int(int, Module*)> read_new_raw;
+    std::function<int(int, bool, Module*)> write_new_raw;
+
+    int read(int pin, bool* out, bool fresh = true, bool raw = false){
+      int res = 0;
+      if(fresh || forceFreshAndFlush){
+        int res = read_new_raw(pin, this);
+      }
+      *out = getbit(lastInState, pin);
+      if(!raw && isInverted[pin])
+        *out = !(*out);
+      return res;
+    }
+    bool readVal(int pin, bool fresh = true, bool raw = false){
+      bool val;
+      read(pin, &val, fresh, raw);
+      return val;
+    }
+    int readall(){
+      return read_new_raw(0, this);
+    }
+
+    int write(int pin, bool value, bool raw = false,bool flush = true){
+      bool val = raw ? value: (value != isInverted[pin]);
+      if(pin >= 0)
+        setbit(outState, pin, val);
+      if(flush || forceFreshAndFlush){
+        return write_new_raw(pin, val, this);
+      }
+      return 0;
+    }
+  };
+
+  Module modules[TypesCount];
+  Module& getModule(DIO::Type type) {return modules[toint(type)]; };
+
+  struct FunctionMapping{
+    DIO::Type type = DIO::Type::NONE;
+    int pin = 0;
+  };
+
+  FunctionMapping functionToPinMapping[FunctionsCount];
+  FunctionMapping& getMapping(DIO::Function function) {return functionToPinMapping[toint(function)]; };
+  
+  void disassignFunction(DIO::Function function, DIO::PinMode mode, bool inverted, DIO::Type type, int pin){
+    auto& mapping = functionToPinMapping[toint(function)];
+    if(mapping.type != DIO::Type::NONE){
+      getModule(mapping.type).setPin(mapping.pin);
     }
   }
-
-  void assignFunctionToPcfPin(Function function, int pcfPin){
-    int functionInt = static_cast<int>(function);
-    functionToPcfPinMap[functionInt] = pcfPin;
-    pcfPinToFunctionMap[pcfPin] = functionInt;
+  void assignFunctionToPin(DIO::Function function, DIO::PinMode mode, bool inverted, DIO::Type type, int pin){
+    auto& mapping = functionToPinMapping[toint(function)];
+    if(mapping.type != DIO::Type::NONE){
+      getModule(mapping.type).setPin(mapping.pin);
+    }
+    getModule(mapping.type).setPin(pin, mode, function, inverted);
   }
-  void assignFunctionToGpio(Function function, int pin, bool inv){
-    int functionInt = static_cast<int>(function);
-    functionToPcfPinMap[functionInt] = pin;
-    pcfPinToFunctionMap[pin] = functionInt;
-    isInversedGpio[pin] = inv;
+
+  void onUnassignedFunction(DIO::Function function, bool fromRead){
+    Serial.printf("ERROR: Attempted to %s unassigned function %s [%d]", 
+                    fromRead ? "read" : "write", getFunctionName(function), toint(function));
+  }
+
+  auto read(DIO::Function function, bool* out, bool fresh = true, bool raw = false){
+    auto& mapping = getMapping(function);
+    if(mapping.type == DIO::Type::NONE){
+      onUnassignedFunction(function, true);
+      return -10;
+    }
+    return getModule(mapping.type).read(mapping.pin, out, fresh, raw);
+  }
+  
+  bool readVal(DIO::Function function, bool fresh = true, bool raw = false){
+    auto& mapping = getMapping(function);
+    if(mapping.type == DIO::Type::NONE){
+      onUnassignedFunction(function, true);
+      return false;
+    }
+    return getModule(mapping.type).readVal(mapping.pin, fresh, raw);
+  }
+  
+  enum class State : uint8_t {NONE = 0, ON = 1, OFF = 2};
+  State readState(DIO::Function function, bool raw = false){
+    auto& mapping = getMapping(function);
+    if(mapping.type == DIO::Type::NONE){
+      onUnassignedFunction(function, true);
+      return State::NONE;
+    }
+    bool val = getModule(mapping.type).readVal(mapping.pin, false, raw);
+    return val ? State::ON : State::OFF;
+  }
+
+  auto write(DIO::Function function, bool value, bool raw = false,bool flush = true){
+    auto& mapping = getMapping(function);
+    if(mapping.type == DIO::Type::NONE){
+      onUnassignedFunction(function, false);
+      return -10;
+    }
+    return getModule(mapping.type).write(mapping.pin, value, raw, flush);
   }
 };
+
 
 struct IOManager{
 
@@ -100,27 +208,15 @@ struct IOManager{
       return (8 - pcfPinNumber) + isPcfOutput * 1000;
     }
 
-    
     static constexpr int CmdPinsCountMax = 2;
     int  CmdPinsCount   = 2;
-    bool usePcf         = true;
     bool invertedOutput = false;
     bool invertedInput  = true;
     
-// GPIO pins
-    /*
-    int PinsCmd[CmdPinsCountMax] {D1, D2};
-    int PinSend = D0;
-    int PinRobotIdle = D5;
-    int PinRobotAck  = D6;
-    */
-
     constexpr static int GPIOPinsMapCount = 9;
     constexpr static int GPIOPinsMap[GPIOPinsMapCount] = {
       D0, D1, D2, D3, D4, D5, D6, D7, D8
     };
-
-    DIOMap dedicatedGPIO;
 
 // PCF pins
 
@@ -129,302 +225,185 @@ struct IOManager{
     bool wasNoErrorRead  = true;
     // Output
     uint8_t outputAddress = 0x38;
-    DIOMap dedicatedOutputs;
+    uint8_t inputAddress  = 0x39;
+    struct PcfState{
+      int lastErrorRead = 0;
+      int lastErrorWrite = 0;
+      bool isHalted = false;
+      bool showError = true;
+      unsigned int errorDelay = 5000;
+      unsigned int lastErrorTime = 0;
+    };
+    static constexpr int PcfsCount = 2;
+    PcfState pcfStates[PcfsCount];
 
-    uint8_t outState = 0xFF;
-    
-    // Input
-    uint8_t inputAddress = 0x39;
-    DIOMap dedicatedInputs;
+    void setShowPcfError(bool val){
+        for(auto& state : pcfStates){
+          state.showError = val;
+        }
+    }
+
+    DIO dio;
 
 
+
+    auto createPcfWriteFunction(uint8_t address, int pcfStateIndex, bool isInputModule = false){
+      return [address, &pcfState = this->pcfStates[pcfStateIndex], isInputModule](int pin, bool val, DIO::Module* module){
+        if(pcfState.isHalted){
+          return pcfState.lastErrorWrite = 0;
+        }
+        Wire.beginTransmission(address);
+        if(isInputModule){
+          Wire.write((uint8_t)0xFF);
+        }else{
+          Wire.write((uint8_t)module->outState);
+        }
+        auto res = Wire.endTransmission();
+        pcfState.lastErrorWrite = res;
+        if(res != 0){
+          if(pcfState.showError || millis() - pcfState.lastErrorTime >= pcfState.errorDelay){
+            pcfState.lastErrorTime = millis();
+            Serial.printf("ERROR PCF [%d] WRITE: %d\n", address, res);
+          }
+          return pcfState.lastErrorWrite = res;
+        }
+        return pcfState.lastErrorWrite = 0;
+      };
+    }
+    auto createPcfReadFunction(uint8_t address, int pcfStateIndex){
+      return [address, &pcfState = this->pcfStates[pcfStateIndex]](int pin, DIO::Module* module){
+        if(pcfState.isHalted){
+          return pcfState.lastErrorRead = 0;
+        }
+        auto res = int(Wire.requestFrom(address, uint8_t(1))) - 1;
+        pcfState.lastErrorRead = res;
+        if(res != 0){
+          if(pcfState.showError || millis() - pcfState.lastErrorTime >= pcfState.errorDelay){
+            pcfState.lastErrorTime = millis();
+            Serial.printf("ERROR PCF [%d] READ:  %d\n", address, res);
+          }
+          return pcfState.lastErrorRead = res;
+        }
+        module->lastInState = Wire.read(); 
+        return pcfState.lastErrorRead = 0;
+      };
+    }
 
     IOManager(){
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OMotorOn, RobotToPcfPin(1003));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OZeroing, RobotToPcfPin(1004));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OReset,   RobotToPcfPin(1005));
+      dio.getModule(DIO::Type::RobotIn).PinsCount = 8;
+      dio.getModule(DIO::Type::RobotOut).PinsCount = 8;
+      dio.getModule(DIO::Type::GPIO).PinsCount = 9;
+      dio.getModule(DIO::Type::GPIO).forceFreshAndFlush = true;
 
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OSend,    RobotToPcfPin(1008));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd1,    RobotToPcfPin(1001));
-      dedicatedOutputs.assignFunctionToPcfPin(DIOMap::Function::OCmd2,    RobotToPcfPin(1002));
-
-      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IError, RobotToPcfPin(7));
-
-      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IIdle, RobotToPcfPin(1));
-      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IAck,  RobotToPcfPin(2));
-      dedicatedInputs.assignFunctionToPcfPin(DIOMap::Function::IGrab, RobotToPcfPin(3));
-
-      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GGrab, 5, true);
-      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GFar1, 6, true);
-      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GIsGrabbed, 7, true);
-      dedicatedGPIO.assignFunctionToGpio(DIOMap::Function::GTens, 8, false);
+      dio.getModule(DIO::Type::RobotIn).read_new_raw  = createPcfReadFunction(outputAddress, 0);
+      dio.getModule(DIO::Type::RobotIn).write_new_raw = createPcfWriteFunction(outputAddress, 0);
       
-    }
+      dio.getModule(DIO::Type::RobotOut).read_new_raw  = createPcfReadFunction(inputAddress, 0);
+      dio.getModule(DIO::Type::RobotOut).write_new_raw = createPcfWriteFunction(inputAddress, 0, true);
+      
+      dio.getModule(DIO::Type::GPIO).read_new_raw  = [](int pin, DIO::Module* module) {
+        int dpin = GPIOPinsMap[pin];
+        setbit(module->lastInState, pin, digitalRead(dpin));
+        return 0;
+      };
+      dio.getModule(DIO::Type::GPIO).write_new_raw = [](int pin, bool val, DIO::Module* module) {
+        int dpin = GPIOPinsMap[pin];
+        digitalWrite(pin, val);
+        return 0;
+      };
 
-    bool setDio(DIOMap::Function function, bool value){
-      int pcfPin = dedicatedOutputs.getPcfPin(function);
-      if(pcfPin == -1){
-        Serial.print("Pin for function ");
-        DIOMap::printFunction(function);
-        Serial.println(" is not assigned");
-        return false;
-      }
-      return writePcfPin(pcfPin, value);
-    }
-    bool getDio(DIOMap::Function function, bool& valueOut){
-      int pcfPin = dedicatedInputs.getPcfPin(function);
-      if(pcfPin == -1){
-        Serial.print("Pin for function ");
-        DIOMap::printFunction(function);
-        Serial.println(" is not assigned");
-        return false;
-      }
-      return readPcfPin(pcfPin);
-    }
-    bool setGpio(DIOMap::Function function, bool value, bool raw = false){
-      int pin  = dedicatedGPIO.getPcfPin(function);
-      if(pin == -1){
-        Serial.print("Pin for function ");
-        DIOMap::printFunction(function);
-        Serial.println(" is not assigned");
-        return false;
-      }
-      int dpin = GPIOPinsMap[pin];
-      if(!raw && dedicatedGPIO.isInversedGpio[pin]){
-        value = !value;
-      }
-      digitalWrite(dpin, value);
-      return true;
-    }
-    bool setGpioIf(DIOMap::Function function, bool cond, bool value){
-      if(cond){
-        return setGpio(function, value);
-      }else{
-        return setGpio(function, false, true);
-      }
-    }
-    bool getGpio(DIOMap::Function function, bool& valueOut){
-      int pin  = dedicatedGPIO.getPcfPin(function);
-      if(pin == -1){
-        Serial.print("Pin for function ");
-        DIOMap::printFunction(function);
-        Serial.println(" is not assigned");
-        return false;
-      }
-      int dpin = GPIOPinsMap[pin];
-      valueOut = digitalRead(dpin);
-      if(dedicatedGPIO.isInversedGpio[pin]){
-        valueOut = !valueOut;
-      }
-      return true;
-    }
+      dio.assignFunctionToPin(DIO::Function::OMotorOn, DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1003));
+      dio.assignFunctionToPin(DIO::Function::OZeroing, DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1004));
+      dio.assignFunctionToPin(DIO::Function::OReset,   DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1005));
+       
+      dio.assignFunctionToPin(DIO::Function::OSend,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1008));
+      dio.assignFunctionToPin(DIO::Function::OCmd1,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1001));
+      dio.assignFunctionToPin(DIO::Function::OCmd2,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1002));
 
-    auto writeInv(){
-      if(invertedOutput)
-        return Wire.write(~outState);
-      return Wire.write(outState);
-    }
-    auto writeInvDigital(uint8_t pin, bool val){
-      if(invertedOutput)
-          return digitalWrite(pin, !val);
-      return digitalWrite(pin, val);
-    }
-    uint8_t readInv(){
-      if(invertedInput)
-        return ~Wire.read();
-      return Wire.read();
-    }
-    bool readInvDigital(uint8_t pin){
-      return digitalRead(pin) != invertedInput;
+      dio.assignFunctionToPin(DIO::Function::IError,   DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(7));
+      dio.assignFunctionToPin(DIO::Function::IIdle,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(1));
+      dio.assignFunctionToPin(DIO::Function::IAck,     DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(2));
+      dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
+
+      dio.assignFunctionToPin(DIO::Function::GGrab,    DIO::PinMode::Output,  true,   DIO::Type::GPIO,     5);
+      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   true,   DIO::Type::GPIO,     6);
+      dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   true,   DIO::Type::GPIO,     7);
+      dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::GPIO,     8);
     }
     
     bool refreshOutState(bool noDelayError = true){
-      static unsigned int errorDelay = 0;
-      if(isPcfCommunicationHalted){
-        return wasNoErrorWrite = false;
-      }
-      Wire.beginTransmission(outputAddress);
-      writeInv();
-      auto res = Wire.endTransmission();
-      if(res != 0){
-        if(noDelayError || errorDelay < millis()){
-          errorDelay = millis() + 5000;
-          Serial.print("ERROR PCF write: ");
-          Serial.println(res);
-        }
-        return wasNoErrorWrite = false;
-      }
-      return wasNoErrorWrite = true;
-    }
-    bool writePcfPin(uint8_t pin, bool val, bool raw = false, bool noDelayError = true){
-        bool toSet = (raw && invertedOutput) ? !val : val;
-        setbit(outState, pin, toSet);
-        return refreshOutState(noDelayError);
+      if(!noDelayError) setShowPcfError(false);
+      dio.getModule(DIO::Type::RobotIn).write(-1, false);
+      dio.getModule(DIO::Type::RobotOut).write(-1, false);
+      if(!noDelayError) setShowPcfError(true);
+      return pcfStates[0].lastErrorWrite == 0 && pcfStates[1].lastErrorWrite == 0; //TODO
     }
 
-    uint8_t getRawOutState(){
-      return invertedOutput ? ~outState : outState;
-    }
-    
-    uint8_t readPcfAll(bool raw = false, bool noDelayError = true, bool* wasSuccess = NULL){
-      static unsigned int errorDelay = 0;
-      if(isPcfCommunicationHalted){
-        wasNoErrorRead = false;
-        return 0;
-      }
-      auto res = Wire.requestFrom(inputAddress, uint8_t(1));
-      if(res != 1){
-        if(noDelayError || errorDelay < millis()){
-          errorDelay = millis() + 5000;
-          Serial.print("ERROR PCF read: ");
-          Serial.println(res);  
-        }
-        if(wasSuccess){
-          *wasSuccess = false;
-        }
-        wasNoErrorRead = false;
-        return 0;
-      }
-      if(wasSuccess){
-        *wasSuccess = true;
-      }
-      wasNoErrorRead = true;
-      return (raw || !invertedInput) ? Wire.read() : ~Wire.read();
+    bool refreshInState(bool noDelayError = true){
+      if(!noDelayError) setShowPcfError(false);
+      dio.getModule(DIO::Type::RobotIn).readall();
+      dio.getModule(DIO::Type::RobotOut).readall();
+      if(!noDelayError) setShowPcfError(true);
+      return pcfStates[0].lastErrorRead == 0 && pcfStates[1].lastErrorRead == 0; //TODO
     }
 
-    bool readPcfPin(uint8_t pos, bool noDelayError = true){
-      uint8_t res = readPcfAll(false, noDelayError);
-      return res & (1 << pos);
-    }
-
+    // Dedicated Commands
     bool setCmd(uint8_t cmd){
-      setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd1), cmd & 0x01);
+      dio.write(DIO::Function::OCmd1, cmd & 0x01, false, false);
       if(CmdPinsCount >= 2)
-        setbit(outState, dedicatedOutputs.getPcfPin(DIOMap::Function::OCmd2), cmd & 0x02);
+        dio.write(DIO::Function::OCmd1, cmd & 0x02, false, false);
       return refreshOutState();
     }
 
-    bool setSend(bool val){
-      return writePcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::OSend), val);
-    }
-
-    bool readIdle(bool noDelayError = true){
-      return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IIdle), noDelayError);
-    }
-    
-    bool readAck(bool noDelayError = true){
-      return readPcfPin(dedicatedInputs.getPcfPin(DIOMap::Function::IAck), noDelayError);
-    }
-    
-    bool getGrab(bool noDelayError = true){
-      return readPcfPin(dedicatedOutputs.getPcfPin(DIOMap::Function::IGrab), noDelayError);
-    }
-
-    bool getFar1(){
-      bool res = false;
-      getGpio(DIOMap::Function::GFar1, res);
-      return res;
-    }
 
 
     void printPcfPins(){
-      Serial.println("===== Pcf -> Robot =====");
-      for(int i=0; i<8; i++){
-        DIOMap::Function function = dedicatedOutputs.getFunction(i);
-        if(function != DIOMap::Function::NONE){
-          auto name = DIOMap::getFunctionName(function);
-          bool val = outState & (1 << i);
-          bool valRaw = invertedOutput ? !val : val;
-          Serial.printf("%s\t(%d (%d))\t = %d [%d]\n", name, i, PcfToRobotPin(i, true), val, valRaw);
+      auto& inModule = dio.getModule(DIO::Type::RobotIn);
+      auto& outModule = dio.getModule(DIO::Type::RobotOut);
+      auto& gpioModule = dio.getModule(DIO::Type::GPIO);
+      auto show = [](DIO::Module& module, int addInfo){
+        for(int i=0; i<module.PinsCount; i++){
+          auto func = module.pinFunctions[i];
+          if(func != DIO::Function::NONE){
+            Serial.printf("%s %s [%d (%d)]\t = %d\n",
+              module.pinModes[i] == DIO::PinMode::Input ? "IN: " : "OUT:"),
+              DIO::getFunctionName(module.pinFunctions[i]),
+              i,
+              addInfo != 2 ? PcfToRobotPin(i, addInfo == 1) : GPIOPinsMap[i],
+              module.readVal(i);
+          }
         }
-      }
-      uint8_t inState = readPcfAll();
-      Serial.println("===== Robot -> Pcf =====");
-      for(int i=0; i<8; i++){
-        DIOMap::Function function = dedicatedInputs.getFunction(i);
-        if(function != DIOMap::Function::NONE){
-          auto name = DIOMap::getFunctionName(function);
-          bool val = inState & (1 << i);
-          bool valRaw = invertedInput ? !val : val;
-          Serial.printf("%s\t(%d (%d))\t = %d [%d]\n", name, i, PcfToRobotPin(i, false), val, valRaw);
-        }
-      }
-      Serial.println("===== GPIO =====");
-      for(int i=0; i<GPIOPinsMapCount; i++){
-        DIOMap::Function function = dedicatedGPIO.getFunction(i);
-        if(function != DIOMap::Function::NONE){
-          auto name = DIOMap::getFunctionName(function);
-          bool val = false;
-          bool success = getGpio(function, val);
-          Serial.printf("%s\t(D%d (%d))\t = %d%c\n", name, i, GPIOPinsMap[i], val, success ? ' ' : '!');
-        }
-      }
-    }
-
-    void assignPcfPin(String name, bool isInput, int pcfPinNumber){
-      DIOMap::Function function = DIOMap::getFunctionFromName(name, isInput);
-      if(function == DIOMap::Function::NONE){
-        Serial.println("Unrecognized function name.");
-        return;
-      }
-      if(isInput){
-        dedicatedInputs.assignFunctionToPcfPin(function, pcfPinNumber);
-      }else{
-        dedicatedOutputs.assignFunctionToPcfPin(function, pcfPinNumber);
-      }
-      setupPins();
+      };
+      Serial.println("======== Pcf -> Robot ======="); show(outModule,  1);
+      Serial.println("======== Robot -> Pcf ======="); show(inModule,   0);
+      Serial.println("========     GPIO     ======="); show(gpioModule, 2);
     }
     
     bool setupPins(){
-      int pin = -1;
-      pin = dedicatedGPIO.getPcfPin(DIOMap::Function::GGrab);
-      if(pin != -1){
-        pin = GPIOPinsMap[pin];
-        pinMode(pin, OUTPUT);
-        digitalWrite(pin, false);
+      auto gpio = dio.getModule(DIO::Type::GPIO);
+      for(int i=0; i<gpio.PinsCount; i++){
+        if(gpio.pinModes[i] == DIO::PinMode::Unused)
+          continue;
+        auto mode = gpio.pinModes[i] == DIO::PinMode::Input ? INPUT : OUTPUT;
+        pinMode(GPIOPinsMap[i], mode);
+        if(mode == OUTPUT){
+          gpio.write(i, false);
+        }
       }
-      pin = dedicatedGPIO.getPcfPin(DIOMap::Function::GFar1);
-      if(pin != -1){
-        pin = GPIOPinsMap[pin];
-        pinMode(pin, INPUT);
-      }
-      Wire.begin(SDA, SCL);
-      outState = 0;
-      Wire.beginTransmission(outputAddress);
-      writeInv();
-      auto resOut = Wire.endTransmission();
-      Wire.beginTransmission(inputAddress);
-      Wire.write(0xFF);
-      auto resIn  = Wire.endTransmission();
-      if(resOut){
-        wasNoErrorWrite = false;
-        Serial.print("ERROR PCF setup Out: ");
-        Serial.println(resOut);
-      }
-      if(resIn){
-        Serial.print("ERROR PCF setup In:  ");
-        wasNoErrorRead = false;
-        Serial.println(resIn);
-      }
-      return !(resOut || resIn);
-   }
 
-    uint8_t lastInState = 0;
-    bool getDioLast(DIOMap::Function function){
-    int pin = dedicatedInputs.getPcfPin(function);
-    if(pin == -1)
-      return false;
-    return lastInState & (1 << pin);
+      Wire.begin(SDA, SCL);
+      return refreshOutState();
    }
    
    void loop(){
-    refreshOutState(false);
-    bool wasSuccess = false;
-    auto inState = readPcfAll(false, false, &wasSuccess);
-    if(wasSuccess){
-      lastInState = inState;
+    refreshOutState();
+    bool success = refreshInState();
+
+    if(success){
+      dio.write(DIO::Function::GGrab, dio.readVal(DIO::Function::IGrab, false));
+    }else{
+      dio.write(DIO::Function::GGrab, false, true);
     }
-    setGpioIf(DIOMap::Function::GGrab, wasNoErrorRead, getDioLast(DIOMap::Function::IGrab));
    }
   
 };

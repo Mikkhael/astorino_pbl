@@ -25,8 +25,7 @@ const char* HELP_STR =
 "w pin (0|1)           - sets output pcf pin\n"
 "dr                    - read dedicated i/o pins\n"
 "dw name (0|1)         - sets dedicated output pin\n"
-"da name robotPin      - assigns a pin to a name\n"
-"dag name pin [inv]    - assigns a GPIO pin to a name\n"
+"da name pin out? inv? - assigns a pin (1-8, 1001-1008, D0-D8) to a name\n"
 "demo (0|1)            - set DEMO mode\n"
 "stopsend              - aborts sending cmd\n"
 "mqttupd ms            - set Mqtt update interval (in ms)\n"
@@ -66,7 +65,6 @@ struct CommandManager
       Serial.printf("Invert Input:    %d\n", ioManager.invertedInput);
       Serial.printf("Mode:            %d\n", acm->sendingMode);
       Serial.printf("Word Size:       %d\n", acm->sender.WordSize);
-      Serial.printf("Using Pcf:       %d\n", ioManager.usePcf);
       Serial.println("========");
     }
     else if(args[0] == "add"){
@@ -145,11 +143,16 @@ struct CommandManager
       ioManager.invertedOutput = args[1][0] == '1';
       Serial.printf("Setting Inverting Output to: ");
       Serial.println(ioManager.invertedOutput);
+      auto& mod = ioManager.dio.getModule(DIO::Type::RobotIn);
+      for(int i=0; i<mod.PinsCount; i++) mod.isInverted[i] = ioManager.invertedOutput;
+      ioManager.setupPins();
     }
     else if(args[0] == "invin"){
       ioManager.invertedInput = args[1][0] == '1';
       Serial.printf("Setting Inverting Input to: ");
       Serial.println(ioManager.invertedInput);
+      auto& mod = ioManager.dio.getModule(DIO::Type::RobotOut);
+      for(int i=0; i<mod.PinsCount; i++) mod.isInverted[i] = ioManager.invertedInput;
       ioManager.setupPins();
     }
     else if(args[0] == "mode"){
@@ -176,78 +179,74 @@ struct CommandManager
       Serial.printf("Setting word size to %d\n", val);
       acm->sender.WordSize = val;
     }
-    else if(args[0] == "usepcf"){
-      bool val = args[1][0] != '0';
-      Serial.printf("Setting Use PCF to %d\n", val);
-      ioManager.usePcf = val;
-      ioManager.setupPins();
-    }
     else if(args[0] == "haltpcf"){
       bool val = args[1][0] == '1';
       Serial.printf("Halting PCF communication: %d\n", val);
-      ioManager.isPcfCommunicationHalted = val;
+      for(auto& state : ioManager.pcfStates){
+        state.isHalted = val;
+      }
     }
     else if(args[0] == "r"){
-      uint8_t in = ioManager.readPcfAll(true);
-      uint8_t out = ioManager.getRawOutState();
+      ioManager.dio.getModule(DIO::Type::RobotOut).readall();
       Serial.print("IN:  ");
-      printBinaryUint8(in);
+      printBinaryUint8(ioManager.dio.getModule(DIO::Type::RobotOut).lastInState);
       Serial.print("\nOUT: ");
-      printBinaryUint8(out);
+      printBinaryUint8(ioManager.dio.getModule(DIO::Type::RobotIn).outState);
       Serial.println();
-    }
-    else if(args[0] == "w"){
-      int pin = args[1][0] - '0';
-      if(args[1].length() == 4){
-        pin = IOManager::RobotToPcfPin(args[1][3] - '0');
-      }
-      bool val = args[2][0] == '1';
-      Serial.printf("Setting pcf pin %d to %d\n", pin, val);
-      ioManager.writePcfPin(pin, val, true);
     }
     else if(args[0] == "dr"){
       ioManager.printPcfPins();
     }
     else if(args[0] == "dw"){
-      auto function = DIOMap::getFunctionFromName(args[1], false);
-      if(function == DIOMap::Function::NONE){
+      auto function = DIO::getFunctionFromName(args[1]);
+      if(function == DIO::Function::NONE){
         Serial.printf("Function named %s does not exist\n", args[1].c_str());
       }else{
-        auto pcfPin = ioManager.dedicatedOutputs.getPcfPin(function);
-        if(pcfPin == -1){
+        auto& mapping = ioManager.dio.getMapping(function);
+        if(mapping.type == DIO::Type::NONE){
             Serial.printf("Function %s has no assigned pin\n", args[1].c_str());
         }else{
             bool value = args[2][0] == '1';
-            Serial.printf("Setting %s (pcf %d (%d)) to %d\n", args[1].c_str(), pcfPin, IOManager::PcfToRobotPin(pcfPin, true), value);
-            ioManager.setDio(function, value);
+            if(mapping.type == DIO::Type::RobotIn){
+              Serial.printf("Setting %s (pcf %d (%d)) to %d\n", args[1].c_str(), mapping.pin, IOManager::PcfToRobotPin(mapping.pin, true), value);
+              ioManager.dio.write(function, value);
+            }
+            else if(mapping.type == DIO::Type::GPIO){
+              Serial.printf("Setting %s (gpio %d (D%d)) to %d\n", args[1].c_str(), mapping.pin, IOManager::GPIOPinsMap[mapping.pin], value);
+              ioManager.dio.write(function, value);
+            }else{
+              Serial.printf("ERROR: Pin assigned to unsuported module.");
+            }
         }
       }
     }
     else if(args[0] == "da"){
-      auto function = DIOMap::getFunctionFromName(args[1], false);
-      if(function == DIOMap::Function::NONE){
+      auto function = DIO::getFunctionFromName(args[1]);
+      if(function == DIO::Function::NONE){
         Serial.printf("Function named %s does not exist\n", args[1].c_str());
       }else{
-        int  pcfPin  = IOManager::RobotToPcfPin(args[2][args[2].length()-1] - '0');
-        bool isInput = args[2].length() == 1;
-        Serial.printf("Assigning pin %d (%d) [Input: %d] to function %s\n", pcfPin, args[2], isInput, args[1]);
-        ioManager.assignPcfPin(args[1], isInput, pcfPin);
-      }
-    }
-    else if(args[0] == "dag"){
-      auto function = DIOMap::getFunctionFromName(args[1], false);
-      if(function == DIOMap::Function::NONE){
-        Serial.printf("Function named %s does not exist\n", args[1].c_str());
-      }else{
-        int pinId = args[2][0] - '0';
-        int pin = 0;
-        if(pinId > 0 && pinId <= IOManager::GPIOPinsMapCount){
-          pin = IOManager::GPIOPinsMap[pinId];
+        bool isInput = args[3] != "out";
+        if(args[2][0] == 'D'){ // GPIO
+          int pin = args[2][1]- '1';
+          bool inv = args[4] == "inv";
+          int dpin = IOManager::GPIOPinsMap[pin];
+          Serial.printf("Assigning pin %d (D%d) [Input: %d, Inv: %d] to function %s\n", pin, dpin, isInput, inv, args[1]);
+          ioManager.dio.assignFunctionToPin(function,
+             isInput ? DIO::PinMode::Input : DIO::PinMode::Output,
+             false,
+             DIO::Type::GPIO,
+             pin);
+        }else{ // PCF
+          int pin = args[2].toInt();
+          int  pcfPin  = IOManager::RobotToPcfPin(pin);
+          bool inv = isInput ? ioManager.invertedInput : ioManager.invertedOutput;
+          Serial.printf("Assigning pin %d (%d) [Input: %d, Inv: %d] to function %s\n", pcfPin, pin, isInput, inv, args[1]);
+          ioManager.dio.assignFunctionToPin(function,
+             isInput ? DIO::PinMode::Input : DIO::PinMode::Output,
+             inv,
+             isInput ? DIO::Type::RobotOut : DIO::Type::RobotIn,
+             pcfPin);
         }
-        bool inv = (args[3] == "inv");
-        Serial.printf("Assigning pin D%d (%d) [Inv: %d] to function %s\n", pinId, pin, inv, args[1]);
-        ioManager.dedicatedGPIO.assignFunctionToGpio(function, pinId, inv);
-        ioManager.setupPins();
       }
     }
     else if(args[0] == "demo"){
