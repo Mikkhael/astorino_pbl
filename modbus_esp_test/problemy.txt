@@ -1,0 +1,28 @@
+========= 14.06.2022 Wtorek - Próba dodania trzeciego PCF'a ========
+
+Napięcie z usb powinno być w okolicach 5,10V
+
+Jest podpięty Czujnik odległości na osobnym usb:
+Zapalenie się diody przez 5V 220Ohm zrzera 0,05V, Przy 5V 1,5kOhm zrzera 0,01V.
+
+Zasilenie zaadresowanego PCF nic nie zmieniło. POdpięcie i2c też. Sygnałów też.
+
+Pełne podpięcie z diodami działa jak samo zapalanie diody..
+
+Wypięcie osobnego USB i podpięcie kablem do głównego USB nic nie zmieniło.
+Podpięcie drutem zmniejszyło napięcie o 0,02V, czasami oscylując na 0,01V.
+
+Wypięcie i wpięcie multimetru nic nie zmienia.
+Nagle zaczęło oscylować pomiędzy 0,02V i 0,03V, palenie się diod zaczęło brać po 0,02V, schodząc najniżej do 5,04V przy obu zapalonych.
+
+Źle podłączyłem usb2. Czujnik odległości przestał działać. Musiałem odpiąć ESP, odczekać, zrestartować, i ruszyło.
+Po podpięciu okazało się, że dioda na czujniku odległości w ogóle nie świeci, zamiast lekko świecić...
+Postanowiłem podpiąć sygnał z czujnika odległości bezpośrednio do PCF'a, a nie do GPIO.
+Wszystkie 3 diody zaświecone dają 5,07V-5,08V, dla domyślnie 5,10V.
+
+Przystępuję do podpięcia czujnika indukcyjnego.
+Samo zasilenie zmniejszyło panięcie o 0,01V, zamykanie i otwieranie nie wpływa na napięcie jak wcześniej (a dochodziło wccześniej do 0,2V spadku)
+WRÓĆ. Jest 0,48V na groundzie i ponad 1V na sygnale. WTF?
+Podłączyłem grounda bezpośrednio i zaczęło działać. Najwidoczniej płytka jest mega oporna. Napięcie na końcu szyny wynosi 5,03V, a GND 0,04V.
+W każdym razie już działa perfekto.
+Test kompletny całości przebiegł pomyślnie.

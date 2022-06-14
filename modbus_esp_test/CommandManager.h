@@ -212,7 +212,7 @@ struct CommandManager
               ioManager.dio.write(function, value);
             }
             else if(mapping.type == DIO::Type::GPIO){
-              Serial.printf("Setting %s (gpio %d (D%d)) to %d\n", args[1].c_str(), mapping.pin, IOManager::GPIOPinsMap[mapping.pin], value);
+              Serial.printf("Setting %s (gpio D%d (%d)) to %d\n", args[1].c_str(), mapping.pin, IOManager::GPIOPinsMap[mapping.pin], value);
               ioManager.dio.write(function, value);
             }else{
               Serial.printf("ERROR: Pin assigned to unsuported module.");
@@ -230,7 +230,7 @@ struct CommandManager
           int pin = args[2][1]- '1';
           bool inv = args[4] == "inv";
           int dpin = IOManager::GPIOPinsMap[pin];
-          Serial.printf("Assigning pin %d (D%d) [Input: %d, Inv: %d] to function %s\n", pin, dpin, isInput, inv, args[1].c_str());
+          Serial.printf("Assigning pin D%d (%d) [Input: %d, Inv: %d] to function %s\n", pin, dpin, isInput, inv, args[1].c_str());
           ioManager.dio.assignFunctionToPin(function,
              isInput ? DIO::PinMode::Input : DIO::PinMode::Output,
              false,

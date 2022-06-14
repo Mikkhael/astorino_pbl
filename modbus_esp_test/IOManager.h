@@ -61,8 +61,8 @@ struct DIO{
     return getFunctionFromIndex(i);
   }
 
-  constexpr static int TypesCount = 3;
-  enum class Type: int {RobotIn, RobotOut, GPIO, NONE};
+  constexpr static int TypesCount = 4;
+  enum class Type: int {RobotIn, RobotOut, GPIO, BoardPcf, NONE};
   
   enum class PinMode {Unused, Input, Output};
   
@@ -228,6 +228,7 @@ struct IOManager{
     // Output
     uint8_t outputAddress = 0x38;
     uint8_t inputAddress  = 0x39;
+    uint8_t boardPcfAddress = 0x3A;
     struct PcfState{
       int lastErrorRead = 0;
       int lastErrorWrite = 0;
@@ -236,7 +237,7 @@ struct IOManager{
       unsigned int errorDelay = 5000;
       unsigned int lastErrorTime = 0;
     };
-    static constexpr int PcfsCount = 2;
+    static constexpr int PcfsCount = 3;
     PcfState pcfStates[PcfsCount];
 
     void setShowPcfError(bool val){
@@ -257,6 +258,9 @@ struct IOManager{
           return pcfState.lastErrorWrite = 0;
         }
         Wire.beginTransmission(address);
+        if(module->pinModes[pin] == DIO::PinMode::Input){
+          setbit(module->outState, pin, 1);
+        }
         if(isInputModule){
           Wire.write((uint8_t)0xFF);
         }else{
@@ -297,23 +301,30 @@ struct IOManager{
     IOManager(){
       dio.getModule(DIO::Type::RobotIn).PinsCount = 8;
       dio.getModule(DIO::Type::RobotOut).PinsCount = 8;
+      dio.getModule(DIO::Type::BoardPcf).PinsCount = 8;
       dio.getModule(DIO::Type::GPIO).PinsCount = 9;
       dio.getModule(DIO::Type::GPIO).forceFreshAndFlush = true;
 
       dio.getModule(DIO::Type::RobotIn).read_new_raw  = createPcfReadFunction(outputAddress, 0);
       dio.getModule(DIO::Type::RobotIn).write_new_raw = createPcfWriteFunction(outputAddress, 0);
       
-      dio.getModule(DIO::Type::RobotOut).read_new_raw  = createPcfReadFunction(inputAddress, 0);
-      dio.getModule(DIO::Type::RobotOut).write_new_raw = createPcfWriteFunction(inputAddress, 0, true);
+      dio.getModule(DIO::Type::RobotOut).read_new_raw  = createPcfReadFunction(inputAddress, 1);
+      dio.getModule(DIO::Type::RobotOut).write_new_raw = createPcfWriteFunction(inputAddress, 1, true);
+      
+      dio.getModule(DIO::Type::BoardPcf).read_new_raw  = createPcfReadFunction(boardPcfAddress, 2);
+      dio.getModule(DIO::Type::BoardPcf).write_new_raw = createPcfWriteFunction(boardPcfAddress, 2, true);
       
       dio.getModule(DIO::Type::GPIO).read_new_raw  = [](int pin, DIO::Module* module) {
         int dpin = GPIOPinsMap[pin];
-        setbit(module->lastInState, dpin, digitalRead(dpin));
+        bool res = digitalRead(dpin);
+        //Serial.printf("READING PIN GPIO %d (D8==%d (%d)) = %d\n", dpin, dpin==D8, D8, res);
+        setbit(module->lastInState, pin, res);
         return 0;
       };
       dio.getModule(DIO::Type::GPIO).write_new_raw = [](int pin, bool val, DIO::Module* module) {
         (void) module;
         int dpin = GPIOPinsMap[pin];
+        //Serial.printf("WRITING PIN GPIO %d (D5==%d) TO %d\n", dpin, dpin==D5, val);
         digitalWrite(dpin, val);
         return 0;
       };
@@ -332,25 +343,38 @@ struct IOManager{
       dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
 
       dio.assignFunctionToPin(DIO::Function::GGrab,    DIO::PinMode::Output,  true,   DIO::Type::GPIO,     5);
-      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   true,   DIO::Type::GPIO,     6);
-      dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   true,   DIO::Type::GPIO,     7);
-      dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::GPIO,     8);
+      
+      dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     0);
+      dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     1);
+      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   true,   DIO::Type::BoardPcf,     2);
     }
     
     bool refreshOutState(bool noDelayError = true){
       if(!noDelayError) setShowPcfError(false);
       dio.getModule(DIO::Type::RobotIn).write(-1, false);
       dio.getModule(DIO::Type::RobotOut).write(-1, false);
+      dio.getModule(DIO::Type::BoardPcf).write(-1, false);
       if(!noDelayError) setShowPcfError(true);
-      return pcfStates[0].lastErrorWrite == 0 && pcfStates[1].lastErrorWrite == 0; //TODO
+      for(auto& state : pcfStates){
+        if(state.lastErrorWrite != 0){
+          return false;
+        }
+      }
+      return true;
     }
 
     bool refreshInState(bool noDelayError = true){
       if(!noDelayError) setShowPcfError(false);
       dio.getModule(DIO::Type::RobotIn).readall();
       dio.getModule(DIO::Type::RobotOut).readall();
+      dio.getModule(DIO::Type::BoardPcf).readall();
       if(!noDelayError) setShowPcfError(true);
-      return pcfStates[0].lastErrorRead == 0 && pcfStates[1].lastErrorRead == 0; //TODO
+      for(auto& state : pcfStates){
+        if(state.lastErrorRead != 0){
+          return false;
+        }
+      }
+      return true;
     }
 
     // Dedicated Commands
@@ -366,22 +390,30 @@ struct IOManager{
     void printPcfPins(){
       auto& inModule = dio.getModule(DIO::Type::RobotIn);
       auto& outModule = dio.getModule(DIO::Type::RobotOut);
+      auto& boardModule = dio.getModule(DIO::Type::BoardPcf);
       auto& gpioModule = dio.getModule(DIO::Type::GPIO);
       auto show = [](DIO::Module& module, int addInfo){
         for(int i=0; i<module.PinsCount; i++){
           auto func = module.pinFunctions[i];
           if(func != DIO::Function::NONE){
+            int pin = i;
+            if(addInfo < 2){
+              pin = PcfToRobotPin(i, addInfo == 1);
+            }else if(addInfo == 2){
+              pin = GPIOPinsMap[i];
+            }
             Serial.printf("%s %s [%d (%d)]\t = %d\n",
               module.pinModes[i] == DIO::PinMode::Input ? "IN: " : "OUT:",
               DIO::getFunctionName(module.pinFunctions[i]),
               i,
-              addInfo != 2 ? PcfToRobotPin(i, addInfo == 1) : GPIOPinsMap[i],
+              pin,
               module.readVal(i));
           }
         }
       };
       Serial.println("======== Robot -> Pcf ======="); show(outModule,   1);
       Serial.println("======== Pcf -> Robot ======="); show(inModule,  0);
+      Serial.println("========  Board PCF   ======="); show(boardModule,  3);
       Serial.println("========     GPIO     ======="); show(gpioModule, 2);
     }
     
@@ -390,7 +422,7 @@ struct IOManager{
       for(int i=0; i<gpio.PinsCount; i++){
         if(gpio.pinModes[i] == DIO::PinMode::Unused)
           continue;
-        auto mode = gpio.pinModes[i] == DIO::PinMode::Input ? INPUT : OUTPUT;
+        auto mode = ((gpio.pinModes[i] == DIO::PinMode::Input) ? INPUT : OUTPUT);
         pinMode(GPIOPinsMap[i], mode);
         if(mode == OUTPUT){
           gpio.write(i, false);
