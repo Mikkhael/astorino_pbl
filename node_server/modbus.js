@@ -42,6 +42,10 @@ class Modbus extends jsmodbus.client.TCP{
         });
 
         this.socket.on("error", (err) => {
+            if(err.code == 'EHOSTUNREACH'){
+                console.error("[MBUS]", "Host unreachable.");
+                return;
+            }
             console.error("[MBUS]", err);
         });
 
