@@ -67,7 +67,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   ////////// MQTT
-  mqtt.address = "raspberrypi";
+  mqtt.address = "192.168.0.104";
   mqtt.user    = "user";
   mqtt.pass    = "password";
   mqtt.begin();
@@ -113,6 +113,7 @@ void loop() {
   mbserver.set(MBServer::RegName::QueueFull,    acm.cmdQueue.isfull());
   mbserver.set(MBServer::RegName::ExecutedCmds, (uint16_t)acm.sender.executedCmds);
 
+  mqtt.payload.idle       = acm.isRobotIdle        ? 2 : 1;
   mqtt.payload.queueEmpty = acm.cmdQueue.isempty() ? 2 : 1;
   mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? 2 : 1;
   mqtt.payload.executedCmds       = acm.sender.executedCmds;

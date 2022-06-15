@@ -1,0 +1,36 @@
+body *{
+    box-sizing: border-box;
+}
+
+.diode{
+    height: 0.8em;
+    width: 0.8em;
+    margin: 0px;
+    padding: 0px;
+    background-color: grey;
+    border: 1px solid black;
+    border-radius: 50%;
+}
+
+.diode[diodevalue="1"]{
+    background-color: green;
+}
+.diode[diodevalue="0"]{
+    background-color: red;
+}
+
+ul.diodes_list{
+    list-style:none;
+    margin: 0px;
+    padding: 0px;
+}
+
+ul.diodes_list > li{
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    display: none;
+}
+ul.diodes_list > li > span{
+    width: 15ch;
+}

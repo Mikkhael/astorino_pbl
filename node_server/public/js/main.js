@@ -25,7 +25,7 @@ function handleMqttMessage(topic, payload){
     }else if(topic == "robotstate"){
         console.log(payload.asString().length);
         const robotstate = parseMQTT_robotstate(payload.asBytes());
-        console.log(robotstate.GFar1);
+        updateRobotState(robotstate);
     }else{
         console.log(`Unhandled topic:`, topic);
     }
@@ -50,13 +50,13 @@ function performNewAssemblyRequest(){
 }
 
 
-const Mqtt_robotstate_labels_uint8 = [
-    "OMotorOn", "CycleStart", "Reset", "OHold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
-    "Send", "Cmd1", "Cmd2",
-    "Cycle", "Repeat", "Teach", "MotorOn", "ESTOP",  "Ready", "Error", "Hold", "Home", "Zeroed",
-    "Idle", "Ack",  "Grab",
-    "GGrab", "GFar1",
-    "QueueFull", "QueueEmpty"
+const Mqtt_robotstate_labels_bool = [
+    "OMotorOn", "OCycleStart", "OReset", "OHold", "OCycleStop", "OMotorOff", "OZeroing", "OInterrupt",
+    "OSend", "OCmd1", "OCmd2",
+    "ICycle", "IRepeat", "ITeach", "IMotorOn", "IESTOP", "IReady", "IError", "IHold", "IHome", "IZeroed",
+    "IIdle", "IAck", "IGrab",
+    "GGrab", "GFar1", "GTens", "GGrabbed",
+    "QueueFull", "QueueEmpty", "Idle", "RESERVED"
 ];
 const Mqtt_robotstate_labels_uint16 = [
     "ExecutedCmds", "ExecutedDebugCmds"
@@ -69,13 +69,13 @@ function parseMQTT_robotstate(payload){
     let res = {};
     const payload_buf = payload.buffer;
     const view = new DataView(payload_buf, payload.byteOffset);
-    for(let i = 0; i<Mqtt_robotstate_labels_uint8.length; i++){
+    for(let i = 0; i<Mqtt_robotstate_labels_bool.length; i++){
         const val = view.getUint8(i);
         if(val == 0) continue;
-        res[Mqtt_robotstate_labels_uint8[i]] = (val == 2);
+        res[Mqtt_robotstate_labels_bool[i]] = (val == 2);
     }
     for(let i = 0; i<Mqtt_robotstate_labels_uint16.length; i++){
-        res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(i + Mqtt_robotstate_labels_uint8.length, true);
+        res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(i + Mqtt_robotstate_labels_bool.length, false);
     }
     return res;
 }

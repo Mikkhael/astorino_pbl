@@ -38,10 +38,10 @@ struct DIO{
                              NONE};
 
   constexpr static const char* FunctionNames[FunctionsCount+1] {
-    "MotorOn", "CycleStart", "Reset", "Hold", "CycleStop", "MotorOff", "Zeroing", "Interrupt",
-    "Send", "Cmd1", "Cmd2",
-    "IsCycle", "IsRepeat", "IsTeach", "IsMotorOn", "ESTOP", "IsReady", "IsError", "IsHold", "IsHome", "IsZeroed",
-    "Idle", "Ack",  "Grab",
+    "OMotorOn", "OCycleStart", "OReset", "OHold", "OCycleStop", "OMotorOff", "OZeroing", "OInterrupt",
+    "OSend", "OCmd1", "OCmd2",
+    "ICycle", "IRepeat", "ITeach", "IMotorOn", "IESTOP", "IReady", "IError", "IHold", "IHome", "IZeroed",
+    "IIdle", "IAck", "IGrab",
     "GGrab", "GFar1", "GTens", "GGrabbed",
     "NONE"};
 
@@ -183,7 +183,7 @@ struct DIO{
   State readState(DIO::Function function, bool raw = false){
     auto& mapping = getMapping(function);
     if(mapping.type == DIO::Type::NONE){
-      onUnassignedFunction(function, true);
+      //onUnassignedFunction(function, true);
       return State::NONE;
     }
     bool val = getModule(mapping.type).readVal(mapping.pin, false, raw);

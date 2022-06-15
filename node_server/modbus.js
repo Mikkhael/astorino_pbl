@@ -87,7 +87,12 @@ class Modbus extends jsmodbus.client.TCP{
         this.socket.connect({
             host: this.address,
             port: this.port,
-        })
+        });
+        // Fix for memory leak in node v10.x
+        let listeners = this.socket.listeners("connect");
+        for(let i=2; i<listeners.length; i++){
+            this.socket.removeListener("connect", listeners[i]);
+        }
     }
     
     poll(){
