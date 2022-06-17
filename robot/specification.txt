@@ -38,19 +38,22 @@ PinSend 	- 1008
 Points (# - not yet tought)
 
 P11			- Storage 	Bottom 	0
-P12	#		- Storage 	Bottom 	1
-P13	#		- Storage 	Bottom 	2 
+P12 		- Storage 	Bottom 	1
+P13			- Storage 	Bottom 	2 
 
 P14			- Storage 	Top	 	0
-P15	#		- Storage 	Top	 	1
-P16	#		- Storage 	Top	 	2
+P15			- Storage 	Top	 	1
+P16			- Storage 	Top	 	2
 
 P20 		- Table		Bottom
 P21 		- Table		Top 	Unscrewed
 P22 		- Table		Top 	Screewed
 
+P25 		- Midpoint above Done/Dispose
+P26         - Midpoint below Home (before table)
+
 P30 		- Done
-P31 *		- Dispose	Bottom
-P32 *		- Dispose	Top
-P33 *		- Dispose	Completed
+P31 		- Dispose	Bottom
+P32 		- Dispose	Top
+P33 		- Dispose	Completed
 
