@@ -4,98 +4,117 @@
 	<meta charset="UTF-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Test Mqtt</title>
+	<title>Astorino PBL Dashboard</title>
 	<!-- Including the library -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-	<h1> Color recognition website!</h1>
+
+	<header class="main_header">
+		Astorino PBL Dashboard
+	</header>
 	
-	<img src="" alt="" id="camera_image">
-<ol>
-	<li><p>Average color: <span id="avg"></span></p></li>
-	<li><p>Standard diviation of color: <span id="dev"></span></p> </li>
-	<li><p>Crop Size: <span id="cropSize"></span></p> </li>
-	<li><p>Value of H : <span id="h"></span></p> </li>
-	<li><p>Value of S : <span id="s"></span></p> </li>
-	<li><p>Value of L : <span id="l"></span></p> </li>
-	
-</ol>
+	<section class="connections_state">
+		<div id="mqtt_connection_state">
+			<div class="name">MQTT</div>
+			<div class="state">DISCONNECTED</div>
+		</div>
+		<div id="robot_connection_state">
+			<div class="name">ROBOT</div>
+			<div class="state">DISCONNECTED</div>
+		</div>
+	</section>
 
-<fieldset>
-	<legend>Send New Assembly Request</legend>
-	<label for="bottomColorSelect">Bottom Color:</label>
-	<select name="bottomColor" id="bottomColorSelect">
-		<option value="0">Color 0</option>
-		<option value="1">Color 1</option>
-		<option value="2">Color 2</option>
-	</select>
-	<br>
-	<label for="topColorSelect">Top Color:</label>
-	<select name="topColor" id="topColorSelect">
-		<option value="0">Color 0</option>
-		<option value="1">Color 1</option>
-		<option value="2">Color 2</option>
-	</select>
-	<br>
-	<button onclick="performNewAssemblyRequest()">SEND</button>
-</fieldset>
-
-
-<fieldset>
-	<legend>Robot State</legend>
-	<p>Executed <span id="stateExecutedCmds">0</span> commands (<span id="stateExecutedDebugCmds">0</span> debug)</p>
 	<fieldset>
-		<legend>Main Signals</legend>
-		<ul class="diodes_list">
-			<li><span>Idle:</span> <div class="diode" id="stateIdle"></div></li>
-			<li><span>GFar1:</span> <div class="diode" id="stateGFar1"></div></li>
-			<li><span>GTens:</span> <div class="diode" id="stateGTens"></div></li>
-			<li><span>GGrab:</span> <div class="diode" id="stateGGrab"></div></li>
-			<li><span>GGrabbed:</span> <div class="diode" id="stateGGrabbed"></div></li>
-			<li><span>QueueFull:</span> <div class="diode" id="stateQueueFull"></div></li>
-			<li><span>QueueEmpty:</span> <div class="diode" id="stateQueueEmpty"></div></li>
-		</ul>
+		<legend>Image Recognition</legend>
+		
+		<img src="" alt="" id="camera_image">
+		<ol>
+			<li><p>Average color: <span id="avg"></span></p></li>
+			<li><p>Standard diviation of color: <span id="dev"></span></p> </li>
+			<li><p>Crop Size: <span id="cropSize"></span></p> </li>
+			<li><p>Value of H : <span id="h"></span></p> </li>
+			<li><p>Value of S : <span id="s"></span></p> </li>
+			<li><p>Value of L : <span id="l"></span></p> </li>
+		</ol>
+		
+		<div id="avgColor" style="height: 20px; width: 40px"></div>
+		
 	</fieldset>
-	<fieldset>
-		<legend>Astorino State</legend>
-		<ul class="diodes_list">
-			<li><span>IGrab:</span> <div class="diode" id="stateIGrab"></div></li>
-			<li><span>ICycle:</span> <div class="diode" id="stateICycle"></div></li>
-			<li><span>IRepeat:</span> <div class="diode" id="stateIRepeat"></div></li>
-			<li><span>ITeach:</span> <div class="diode" id="stateITeach"></div></li>
-			<li><span>IMotorOn:</span> <div class="diode" id="stateIMotorOn"></div></li>
-			<li><span>IESTOP:</span> <div class="diode" id="stateIESTOP"></div></li>
-			<li><span>IReady:</span> <div class="diode" id="stateIReady"></div></li>
-			<li><span>IError:</span> <div class="diode" id="stateIError"></div></li>
-			<li><span>IHold:</span> <div class="diode" id="stateIHold"></div></li>
-			<li><span>IHome:</span> <div class="diode" id="stateIHome"></div></li>
-			<li><span>IZeroed:</span> <div class="diode" id="stateIZeroed"></div></li>
-			<li><span>IIdle:</span> <div class="diode" id="stateIIdle"></div></li>
-			<li><span>IAck:</span> <div class="diode" id="stateIAck"></div></li>
-		</ul>
-	</fieldset>
-	<fieldset>
-		<legend>Astorino Control</legend>
-		<ul class="diodes_list">
-			<li><span>OSend:</span> <div class="diode" id="stateOSend"></div></li>
-			<li><span>OCmd1:</span> <div class="diode" id="stateOCmd1"></div></li>
-			<li><span>OCmd2:</span> <div class="diode" id="stateOCmd2"></div></li>
-			<li><span>OMotorOn:</span> <div class="diode" id="stateOMotorOn"></div></li>
-			<li><span>OCycleStart:</span> <div class="diode" id="stateOCycleStart"></div></li>
-			<li><span>OReset:</span> <div class="diode" id="stateOReset"></div></li>
-			<li><span>OHold:</span> <div class="diode" id="stateOHold"></div></li>
-			<li><span>OCycleStop:</span> <div class="diode" id="stateOCycleStop"></div></li>
-			<li><span>OMotorOff:</span> <div class="diode" id="stateOMotorOff"></div></li>
-			<li><span>OZeroing:</span> <div class="diode" id="stateOZeroing"></div></li>
-			<li><span>OInterrupt:</span> <div class="diode" id="stateOInterrupt"></div></li>
-		</ul>
-	</fieldset>
-</fieldset>
 
-	<div id="avgColor" style="height: 20px; width: 40px"></div>
-<!-- div to pusty kontener stosowany do dfiniowania pustej sekcji -->
+		
+	<fieldset>
+		<legend>Send New Assembly Request</legend>
+		<label for="bottomColorSelect">Bottom Color:</label>
+		<select name="bottomColor" id="bottomColorSelect">
+			<option value="0">Color 0</option>
+			<option value="1">Color 1</option>
+			<option value="2">Color 2</option>
+		</select>
+		<br>
+		<label for="topColorSelect">Top Color:</label>
+		<select name="topColor" id="topColorSelect">
+			<option value="0">Color 0</option>
+			<option value="1">Color 1</option>
+			<option value="2">Color 2</option>
+		</select>
+		<br>
+		<button onclick="performNewAssemblyRequest()">SEND</button>
+	</fieldset>
+
+
+	<fieldset>
+		<legend>Robot State</legend>
+		<p>Executed <span id="stateExecutedCmds">0</span> commands (<span id="stateExecutedDebugCmds">0</span> debug)</p>
+		<fieldset>
+			<legend>Main Signals</legend>
+			<ul class="diodes_list">
+				<li><span>Idle:</span> <div class="diode" id="stateIdle"></div></li>
+				<li><span>GFar1:</span> <div class="diode" id="stateGFar1"></div></li>
+				<li><span>GTens:</span> <div class="diode" id="stateGTens"></div></li>
+				<li><span>GGrab:</span> <div class="diode" id="stateGGrab"></div></li>
+				<li><span>GGrabbed:</span> <div class="diode" id="stateGGrabbed"></div></li>
+				<li><span>QueueFull:</span> <div class="diode" id="stateQueueFull"></div></li>
+				<li><span>QueueEmpty:</span> <div class="diode" id="stateQueueEmpty"></div></li>
+			</ul>
+		</fieldset>
+		<fieldset>
+			<legend>Astorino State</legend>
+			<ul class="diodes_list">
+				<li><span>IGrab:</span> <div class="diode" id="stateIGrab"></div></li>
+				<li><span>ICycle:</span> <div class="diode" id="stateICycle"></div></li>
+				<li><span>IRepeat:</span> <div class="diode" id="stateIRepeat"></div></li>
+				<li><span>ITeach:</span> <div class="diode" id="stateITeach"></div></li>
+				<li><span>IMotorOn:</span> <div class="diode" id="stateIMotorOn"></div></li>
+				<li><span>IESTOP:</span> <div class="diode" id="stateIESTOP"></div></li>
+				<li><span>IReady:</span> <div class="diode" id="stateIReady"></div></li>
+				<li><span>IError:</span> <div class="diode" id="stateIError"></div></li>
+				<li><span>IHold:</span> <div class="diode" id="stateIHold"></div></li>
+				<li><span>IHome:</span> <div class="diode" id="stateIHome"></div></li>
+				<li><span>IZeroed:</span> <div class="diode" id="stateIZeroed"></div></li>
+				<li><span>IIdle:</span> <div class="diode" id="stateIIdle"></div></li>
+				<li><span>IAck:</span> <div class="diode" id="stateIAck"></div></li>
+			</ul>
+		</fieldset>
+		<fieldset>
+			<legend>Astorino Control</legend>
+			<ul class="diodes_list">
+				<li><span>OSend:</span> <div class="diode" id="stateOSend"></div></li>
+				<li><span>OCmd1:</span> <div class="diode" id="stateOCmd1"></div></li>
+				<li><span>OCmd2:</span> <div class="diode" id="stateOCmd2"></div></li>
+				<li><span>OMotorOn:</span> <div class="diode" id="stateOMotorOn"></div></li>
+				<li><span>OCycleStart:</span> <div class="diode" id="stateOCycleStart"></div></li>
+				<li><span>OReset:</span> <div class="diode" id="stateOReset"></div></li>
+				<li><span>OHold:</span> <div class="diode" id="stateOHold"></div></li>
+				<li><span>OCycleStop:</span> <div class="diode" id="stateOCycleStop"></div></li>
+				<li><span>OMotorOff:</span> <div class="diode" id="stateOMotorOff"></div></li>
+				<li><span>OZeroing:</span> <div class="diode" id="stateOZeroing"></div></li>
+				<li><span>OInterrupt:</span> <div class="diode" id="stateOInterrupt"></div></li>
+			</ul>
+		</fieldset>
+	</fieldset>
+
 	<script src="js/mqtt.js"></script>
 	<script src="js/ui.js"></script>
 	<script src="js/main.js"></script>

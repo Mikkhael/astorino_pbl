@@ -1,25 +1,26 @@
-
-//@ts-check
-
 // References to all important User Interface controls and widgets
 const UI = {
-    /**@type {HTMLImageElement | any} */ cameraImage: null,
+    /**@type {HTMLImageElement} */ cameraImage: null,
     imageAnalysis:{
-        /**@type {HTMLElement | any} */ avg: null,
-        /**@type {HTMLElement | any} */ dev: null,
-        /**@type {HTMLElement | any} */ cropSize: null,
-        /**@type {HTMLElement | any} */ avgColor: null,
-        /**@type {HTMLElement | any} */ h: null,
-        /**@type {HTMLElement | any} */ l: null,
-        /**@type {HTMLElement | any} */ s: null,
+        /**@type {HTMLElement} */ avg: null,
+        /**@type {HTMLElement} */ dev: null,
+        /**@type {HTMLElement} */ cropSize: null,
+        /**@type {HTMLElement} */ avgColor: null,
+        /**@type {HTMLElement} */ h: null,
+        /**@type {HTMLElement} */ l: null,
+        /**@type {HTMLElement} */ s: null,
     },
     assemblyRequest: {
-        /**@type {HTMLSelectElement | any} */ bottomColorSelect: null,
-        /**@type {HTMLSelectElement | any} */ topColorSelect: null,
+        /**@type {HTMLSelectElement} */ bottomColorSelect: null,
+        /**@type {HTMLSelectElement} */ topColorSelect: null,
+    },
+    dashboard:{
+        /**@type {HTMLElement} */ mqttConnectedState: null,
+        /**@type {HTMLElement} */ robotConnectedState: null,
     },
     robotState: {
-        /**@type {HTMLElement | any} */ executedCmds: null,
-        /**@type {HTMLElement | any} */ executedDebugCmds: null,
+        /**@type {HTMLElement} */ executedCmds: null,
+        /**@type {HTMLElement} */ executedDebugCmds: null,
     }
 };
 
@@ -51,8 +52,16 @@ function initUIElements(){
 
     UI.robotState.executedCmds          = querySelector("#stateExecutedCmds");
     UI.robotState.executedDebugCmds     = querySelector("#stateExecutedDebugCmds");
+
+    UI.dashboard.mqttConnectedState   = querySelector("#mqtt_connection_state .state")
+    UI.dashboard.robotConnectedState  = querySelector("#robot_connection_state .state")
 }
 
+let lastRobotState = {};
+let dashboardState = {
+    mqtt_connected: false,
+    robot_connected: false,
+};
 
 let currentImageDataUrl = null; // Last bounded URL to the image data Blob
 
@@ -88,7 +97,6 @@ function getNewAssemblyRequest(){
     return {bottomColor, topColor};
 }
 
-let lastRobotState = {};
 function updateRobotState(state = {}){
     Object.assign(lastRobotState, state);
     if(state["ExecutedCmds"] !== undefined){
@@ -104,7 +112,23 @@ function updateRobotState(state = {}){
             continue;
         }
         element.setAttribute("diodevalue", value ? "1" : "0");
-        //@ts-ignore
         element.parentElement.style.display = "flex";
     }
+}
+
+function updateDashboard()
+{
+    /**
+     * @param {HTMLElement} element 
+     * @param {boolean} state 
+     */
+    function setConnected(element, state){
+        if(state){
+            element.classList.add("connected");
+            element.innerHTML = "CONNECTED";
+        }
+    }
+
+    setConnected(UI.dashboard.mqttConnectedState, dashboardState.mqtt_connected);
+    setConnected(UI.dashboard.robotConnectedState, dashboardState.robot_connected);
 }

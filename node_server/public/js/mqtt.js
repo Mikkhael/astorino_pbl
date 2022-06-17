@@ -18,11 +18,13 @@ function MQTT_setMessageHandler(handler){
 
 function MQTT_createClientAndConnect(){
     const mqttClient = new Paho.MQTT.Client(mqtt_url, mqtt_id);
+    mqttClient.isConnected = false;
 
     mqttClient.connect({
         userName: mqtt_user,
         password: mqtt_pass,
         onSuccess: () => {
+            mqttClient.isConnected = true;
             console.log("[MQTT] Connection Success");
             mqttClient.subscribe("img/jpeg");
             mqttClient.subscribe("test");
@@ -34,6 +36,7 @@ function MQTT_createClientAndConnect(){
         }
     });
     mqttClient.onConnectionLost = (err) => {
+        mqttClient.isConnected = false;
         console.error("[MQTT] Disconnected", err);
     }
     mqttClient.onMessageArrived = (message) => {

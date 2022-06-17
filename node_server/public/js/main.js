@@ -4,6 +4,7 @@ initUIElements();
 ////////////////// MQTT //////////////////////////
 
 let tmp;
+let lastRobotStateMessageTime = -10000;
 
 /**
  * @param {string} topic 
@@ -23,6 +24,7 @@ function handleMqttMessage(topic, payload){
 		tmp = data;
         updateImageAnalysis(data);
     }else if(topic == "robotstate"){
+        lastRobotStateMessageTime = Date.now();
         console.log(payload.asString().length);
         const robotstate = parseMQTT_robotstate(payload.asBytes());
         updateRobotState(robotstate);
@@ -79,3 +81,12 @@ function parseMQTT_robotstate(payload){
     }
     return res;
 }
+
+// Periodically update dashboard
+
+function dashboardUpdateRoutine(){
+    dashboardState.mqtt_connected = mqttClient.isConnected;
+    dashboardState.robot_connected = ((lastRobotStateMessageTime - Date.now()) >= 5000);
+    updateDashboard();
+}
+setInterval(dashboardUpdateRoutine, 1000);

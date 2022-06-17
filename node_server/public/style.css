@@ -1,6 +1,70 @@
 body *{
     box-sizing: border-box;
+    margin: 0px;
 }
+
+/* Main Layout */
+
+body{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    background-color: #7dd181;
+}
+
+body > *{
+    flex-grow: 1;
+}
+
+/* Header */
+
+body > .main_header{
+    background-color: #4b8053;
+    color: white;
+    padding: 5px;
+    flex-basis: 80%;
+    border: 1px solid white;
+    font-size: 2em;
+}
+
+body > .connections_state{
+    background-color: #4b8053;
+    font-size: 0.7em;
+    flex-basis: 20%;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid white;
+}
+
+body > .connections_state > *{
+    display: flex;
+    flex-direction: row;
+    padding: 2px;
+    width: 100%;
+    justify-content: space-around;
+}
+body > .connections_state > * > *{
+    text-align: center;
+}
+body > .connections_state > * > .state{
+    background-color: red;
+}
+body > .connections_state > * > .state.connected{
+    background-color: green;
+}
+
+@media screen and (max-width: 800px) {
+    body > .main_header{
+        flex-basis: 100%;
+    }
+    body > .connections_state{
+        flex-basis: 100%;
+    }
+}
+
+/* Robot Controler State */
 
 .diode{
     height: 0.8em;
