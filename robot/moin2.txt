@@ -42,27 +42,33 @@
    StorageOffset = 0
    ForceGrabber = 0 ; 0 none, 1 on, 2 off
    ;V 0 none, 1 bottom, 2 top, 3 both
-   ;V 10 storage, 20 table, 30 done, 40 dispose
+   ;V 10 storage, 20 table, 30 done, 40 dispose, 50 check
    ActionTake  = 0
    ActionPut   = 0 
    BeforeTake  = 0 ; 0 none, 1 MidTable
    BeforePut   = 0 ; 0 none, 1 MidTable, 2 MidDone, 3 MidTable HOME MidDone
    BeforeEnd   = 0 ; 0 none, 1 MidTable HOME, 2 MidDone HOME, 3 HOME
    ; Main Commands
-   ; Bottom from Storage to Table
+   ; Bottom from Storage to Check
    IF (CmdWordA < 5) THEN
       StorageOffset = CmdWordA
-      BeforeTake = 0
       ActionTake = 11
+      ActionPut  = 51
+   END
+   ; Top from Storage to Check
+   IF ((CmdWordA >= 5) * (CmdWordA < 10)) THEN
+      StorageOffset = CmdWordA - 5
+      ActionTake = 12
+      ActionPut  = 52
+   END
+   ; Bottom From Check to Table
+   IF (CmdWordA == 20) THEN
       BeforePut  = 1
       ActionPut  = 21
       BeforeEnd  = 1
    END
-   ; Top from Storage to Assemble
-   IF ((CmdWordA >= 5) * (CmdWordA < 10)) THEN
-      StorageOffset = CmdWordA - 5
-      BeforeTake = 0
-      ActionTake = 12
+   ; Top From Check to Assemble
+   IF (CmdWordA == 21) THEN
       BeforePut  = 1
       ActionPut  = 22
       BeforeEnd  = 1
@@ -193,16 +199,17 @@
       IsTakingFromStorage = 1
       IF (ActionTake == 11) THEN
          IF (StorageOffset == 0) THEN
-            POINT TakeDest = P11
+            POINT TakeDest = P5
          END
          IF (StorageOffset == 1) THEN
-            POINT TakeDest = P12
+            POINT TakeDest = P6
          END
          IF (StorageOffset == 2) THEN
-            POINT TakeDest = P13
+            POINT TakeDest = P7
          END
       END
       IF (ActionTake == 12) THEN
+         SIGNAL 2010 ; not yet taught
          IF (StorageOffset == 0) THEN
             POINT TakeDest = P14
          END
@@ -289,6 +296,14 @@
          POINT PutDest = P33
       END
    END
+   ; Check if Grabbed
+   PutNoDrop = 0
+   IF (ActionPut > 50) * (ActionPut < 54) THEN
+      SIGNAL -2011 ; No Put Error
+      PutApp = 1
+      POINT PutDest = P19
+      PutNoDrop = 1
+   END
    
    IF ((PutApp > 0) * ((SIG(2010)) == 0)) THEN
       IF (BeforePut == 1) THEN
@@ -321,8 +336,10 @@
       ELSE
          JAPPRO PutDest, PutApp
          LMOVE PutDest
-         SIGNAL -3 ; Release Grabber
-         LDEPART PutApp
+         IF (PutNoDrop == 0) THEN
+            SIGNAL -3 ; Release Grabber
+            LDEPART PutApp
+         END
       END
       unknown = 0
    END

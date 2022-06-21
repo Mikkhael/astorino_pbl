@@ -36,9 +36,14 @@ struct MBServer{
     }
 
     enum class RegName : int {
-        Cmd = 0, CmdArg1, CmdArg2, Reset, RobotIdle, QueueEmpty, QueueFull, ExecutedCmds
+        Cmd = 0, CmdArg1, CmdArg2,
+        Reset, RobotIdle, QueueEmpty, QueueFull,
+        GrabberClosed, ElementGrabbed, ButtonPressed,
+        ExecutedCmds,
+        COUNT
     };
-    static constexpr int RegNameCount = 8;
+    static constexpr int RegNameCount = 11;
+    static_assert(RegNameCount == static_cast<int>(RegName::COUNT));
 
     ModbusTCPWrapper mb;
 
@@ -47,7 +52,7 @@ struct MBServer{
     template<typename OnWrite = nullptr_t, typename OnRead = nullptr_t>
     void addReg(RegName name, TAddress address, OnWrite onWrite = nullptr, OnRead onRead = nullptr){
         int regIndex = static_cast<int>(name);
-        mb.addReg(address, (uint16_t)0, 1);
+        auto success = mb.addReg(address, (uint16_t)0, 1);
         mb.onSet(address, [this, onWrite, type = TAddressToString(address)](TRegister* reg, uint16_t val){
             debugWrite(type, reg, val);
             if constexpr(std::is_same_v<OnWrite, nullptr_t>){
@@ -64,11 +69,27 @@ struct MBServer{
                 return onRead(reg, val);
             }
         });
+//        Serial.print("new regindex: ");
+//        Serial.print(regIndex);
+//        Serial.print(" ");
+//        Serial.print(success);
+//        Serial.print(" ");
+//        Serial.print((int)address.address);
+//        Serial.print(" ");
+//        Serial.print((int)mb.searchRegister(address));
+//        Serial.println();
         usedRegisters[regIndex] = mb.searchRegister(address);
     }
     TRegister* getReg(RegName name){
         int regIndex = static_cast<int>(name);
-        return usedRegisters[regIndex];
+//        Serial.print("Getting reg: ");
+//        Serial.print(regIndex);
+        auto res = usedRegisters[regIndex];
+//        Serial.print(" ");
+//        Serial.print((int)res);
+//        Serial.println();
+        //delay(100);
+        return res;
     }
     uint16_t get(RegName name){
         auto reg = getReg(name);
@@ -129,6 +150,10 @@ struct MBServer{
         addReg(RegName::RobotIdle,  ISTS(100));
         addReg(RegName::QueueEmpty, ISTS(102));
         addReg(RegName::QueueFull,  ISTS(103));
+        
+        addReg(RegName::GrabberClosed,  ISTS(50));
+        addReg(RegName::ElementGrabbed, ISTS(51));
+        addReg(RegName::ButtonPressed,  ISTS(52));
 
         /// IREG
         addReg(RegName::ExecutedCmds,  IREG(101));

@@ -1,7 +1,9 @@
 
 Main Commands
-0 .. 4		- Take Bottom from Storage (of given offset) and Put on Table
-5 .. 9     	- Take Top from Storage (of given offset) and Assemble on Table
+0 .. 4		- Take Bottom from Storage (of given offset) and Check If Grabbed --Put on Table--
+5 .. 9     	- Take Top from Storage (of given offset) and Check If Grabbed --Assemble on Table--
+20          - Put on Table (from Check If Grabbed)
+21          - Assemble on Table (from Check If Grabbed)
 10       	- Take Top from Table and Put as Done
 15			- Take Bottom from Table and Put as Discard
 16			- Disassemble Top from Table and Put as Discard
@@ -37,6 +39,7 @@ PinSend 	- 1008
 
 Points (# - not yet tought)
 
+/* OLD
 P11			- Storage 	Bottom 	0
 P12 		- Storage 	Bottom 	1
 P13			- Storage 	Bottom 	2 
@@ -44,6 +47,17 @@ P13			- Storage 	Bottom 	2
 P14			- Storage 	Top	 	0
 P15			- Storage 	Top	 	1
 P16			- Storage 	Top	 	2
+*/
+
+P5			- Storage 	Bottom 	0
+P6 		    - Storage 	Bottom 	1
+P7			- Storage 	Bottom 	2 
+
+P8#			- Storage 	Top	 	0
+P9#			- Storage 	Top	 	1
+P10#		- Storage 	Top	 	2
+
+P19         - Check Element Grabbed
 
 P20 		- Table		Bottom
 P21 		- Table		Top 	Unscrewed
