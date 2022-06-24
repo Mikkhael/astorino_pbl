@@ -117,6 +117,8 @@ void loop() {
   mbserver.set(MBServer::RegName::ElementGrabbed, ioManager.dio.readVal(DIO::Function::GFar1,    false));
   mbserver.set(MBServer::RegName::ButtonPressed,  ioManager.dio.readVal(DIO::Function::GTens,    false));
 
+  ioManager.dio.write(DIO::Function::GTestButt, mbserver.isTestButton());
+
   mqtt.payload.idle       = acm.isRobotIdle        ? 2 : 1;
   mqtt.payload.queueEmpty = acm.cmdQueue.isempty() ? 2 : 1;
   mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? 2 : 1;

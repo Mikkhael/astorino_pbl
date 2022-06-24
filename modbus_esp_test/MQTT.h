@@ -26,7 +26,7 @@ struct MQTT{
     uint8_t queueFull = 0;
     uint8_t queueEmpty = 0;
     uint8_t idle = 0;
-    uint8_t reserved;
+    //uint8_t reserved;
 
     // Numbers
     uint16_t executedCmds = 0;
@@ -46,7 +46,7 @@ struct MQTT{
     }
   } payload;
 
-  static_assert(sizeof(Payload) == DIO::FunctionsCount + 4 + 2*2);
+  static_assert(sizeof(Payload) == DIO::FunctionsCount + 3 + 2*2);
 
   unsigned long lastUpdate = 0;
   bool trySendUpdate(){

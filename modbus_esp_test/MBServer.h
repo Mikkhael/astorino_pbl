@@ -37,17 +37,19 @@ struct MBServer{
 
     enum class RegName : int {
         Cmd = 0, CmdArg1, CmdArg2,
-        Reset, RobotIdle, QueueEmpty, QueueFull,
+        Reset, TestButton,
+        RobotIdle, QueueEmpty, QueueFull,
         GrabberClosed, ElementGrabbed, ButtonPressed,
         ExecutedCmds,
         COUNT
     };
-    static constexpr int RegNameCount = 11;
+    static constexpr int RegNameCount = 12;
     static_assert(RegNameCount == static_cast<int>(RegName::COUNT));
 
     ModbusTCPWrapper mb;
 
     TRegister* usedRegisters[RegNameCount];
+    TAddress usedRegistersAddresses[RegNameCount];
 
     template<typename OnWrite = nullptr_t, typename OnRead = nullptr_t>
     void addReg(RegName name, TAddress address, OnWrite onWrite = nullptr, OnRead onRead = nullptr){
@@ -58,7 +60,9 @@ struct MBServer{
             if constexpr(std::is_same_v<OnWrite, nullptr_t>){
                 return val;
             }else{
-                return onWrite(reg, val);
+                uint16_t v = onWrite(reg, val);
+                Serial.printf("%d WRITING: %d\n", reg->address.address, v);
+                return v;
             }
         });
         mb.onGet(address, [this, onRead, type = TAddressToString(address)](TRegister* reg, uint16_t val){
@@ -78,13 +82,21 @@ struct MBServer{
 //        Serial.print(" ");
 //        Serial.print((int)mb.searchRegister(address));
 //        Serial.println();
-        usedRegisters[regIndex] = mb.searchRegister(address);
+        //usedRegisters[regIndex] = mb.searchRegister(address);
+        usedRegistersAddresses[regIndex] = address;
     }
+    void loadTReggisters(){
+      for(int i=0; i<RegNameCount; i++){
+        usedRegisters[i] = mb.searchRegister(usedRegistersAddresses[i]);
+      }
+    }
+    
     TRegister* getReg(RegName name){
         int regIndex = static_cast<int>(name);
 //        Serial.print("Getting reg: ");
 //        Serial.print(regIndex);
-        auto res = usedRegisters[regIndex];
+        //auto res = usedRegisters[regIndex];
+        auto res = mb.searchRegister(usedRegistersAddresses[regIndex]);
 //        Serial.print(" ");
 //        Serial.print((int)res);
 //        Serial.println();
@@ -95,10 +107,10 @@ struct MBServer{
         auto reg = getReg(name);
         return reg->value;
     }
-    uint16_t& getRef(RegName name){
-        auto reg = getReg(name);
-        return reg->value;
-    }
+//    uint16_t& getRef(RegName name){
+//        auto reg = getReg(name);
+//        return reg->value;
+//    }
     void set(RegName name, uint16_t value){
         auto reg = getReg(name);
         reg->value = value;
@@ -111,15 +123,24 @@ struct MBServer{
 
     bool newCmd = false;
     bool requestedReset = false;
+    bool isTestButton(){
+      return get(RegName::TestButton);
+    }
 
-    uint16_t& cmdPart(uint16_t offset){
+    uint16_t cmdPart(uint16_t offset){
         auto name = RegName::Cmd;
         if(offset == 1) name = RegName::CmdArg1;
         if(offset == 2) name = RegName::CmdArg2;
-        return getRef(name);
+        auto v = get(name);
+        Serial.printf("CMD PART %d = %d\n", offset, v);
+        return v;
     }
     
     Msg getFullMsg(){
+//        Serial.printf("TEST 100: %d\n", mb.searchRegister(HREG(100)) == getReg(RegName::Cmd) );
+//        Serial.printf("TEST 101: %d\n", mb.searchRegister(HREG(101)) == getReg(RegName::CmdArg1) );
+//        Serial.printf("TEST 102: %d\n", mb.searchRegister(HREG(102)) == getReg(RegName::CmdArg2) );
+        //delay(100);
         Msg res;
         for(int i=0; i<CmdArgsCount+1; i++){
             res.parts[i] = cmdPart(i);
@@ -133,7 +154,7 @@ struct MBServer{
         /// HREG
         addReg(RegName::Cmd, HREG(100), [this](TRegister* reg, uint16_t val){
             (void) reg;
-            newCmd = val;
+            newCmd = true;
             return val;
         });
         addReg(RegName::CmdArg1, HREG(101));
@@ -145,6 +166,7 @@ struct MBServer{
             requestedReset = true;
             return val;
         });
+        addReg(RegName::TestButton, COIL(102));
 
         /// ISTS
         addReg(RegName::RobotIdle,  ISTS(100));
@@ -168,6 +190,8 @@ struct MBServer{
             Serial.printf("Modbus Disconnect: %s\n", ip.toString().c_str());
             return true;
         });
+        
+        //loadTReggisters();
     }
 
     void loop(){

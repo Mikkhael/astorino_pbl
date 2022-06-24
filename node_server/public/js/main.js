@@ -57,8 +57,8 @@ const Mqtt_robotstate_labels_bool = [
     "OSend", "OCmd1", "OCmd2",
     "ICycle", "IRepeat", "ITeach", "IMotorOn", "IESTOP", "IReady", "IError", "IHold", "IHome", "IZeroed",
     "IIdle", "IAck", "IGrab",
-    "GGrab", "GFar1", "GTens", "GGrabbed",
-    "QueueFull", "QueueEmpty", "Idle", "RESERVED"
+    "GGrab", "GTestButt", "GFar1", "GTens", "GGrabbed",
+    "QueueFull", "QueueEmpty", "Idle",
 ];
 const Mqtt_robotstate_labels_uint16 = [
     "ExecutedCmds", "ExecutedDebugCmds"

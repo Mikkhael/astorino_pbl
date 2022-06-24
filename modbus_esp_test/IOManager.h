@@ -28,13 +28,13 @@ struct DIO{
   constexpr static int PinsCount = 9;
   constexpr static int OutFunctionsCount = 8+3;
   constexpr static int InFunctionsCount = 10+3;
-  constexpr static int GPIOFunctionsCount  = 4;
+  constexpr static int GPIOFunctionsCount  = 5;
   constexpr static int FunctionsCount  = OutFunctionsCount+InFunctionsCount+GPIOFunctionsCount;
   enum class Function : int {OMotorOn, OCycleStart, OReset, OHold, OCycleStop, OMotorOff, OZeroing, OInterrupt, // 8 DIO
                               OSend, OCmd1, OCmd2,                                                              // 3 Custom
                              ICycle, IRepeat, ITeach, IMotorOn, IESTOP, IReady, IError, IHold, IHome, IZeroed,  // 10 DIO
                               IIdle, IAck, IGrab,                                                               // 3 Custom
-                             GGrab, GFar1, GTens, GGrabbed,                                                   // 4 GPIO
+                             GGrab, GTestButt, GFar1, GTens, GGrabbed,                                          // 5 GPIO
                              NONE};
 
   constexpr static const char* FunctionNames[FunctionsCount+1] {
@@ -42,7 +42,7 @@ struct DIO{
     "OSend", "OCmd1", "OCmd2",
     "ICycle", "IRepeat", "ITeach", "IMotorOn", "IESTOP", "IReady", "IError", "IHold", "IHome", "IZeroed",
     "IIdle", "IAck", "IGrab",
-    "GGrab", "GFar1", "GTens", "GGrabbed",
+    "GGrab", "GTestButt", "GFar1", "GTens", "GGrabbed",
     "NONE"};
 
   static constexpr const char* getFunctionName(DIO::Function function){
@@ -342,7 +342,8 @@ struct IOManager{
       dio.assignFunctionToPin(DIO::Function::IAck,     DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(2));
       dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
 
-      dio.assignFunctionToPin(DIO::Function::GGrab,    DIO::PinMode::Output,  true,   DIO::Type::GPIO,     5);
+      dio.assignFunctionToPin(DIO::Function::GGrab,     DIO::PinMode::Output,  true,   DIO::Type::GPIO,     5);
+      dio.assignFunctionToPin(DIO::Function::GTestButt, DIO::PinMode::Output,  false,  DIO::Type::GPIO,     6);
       
       dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     0);
       dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     1);
