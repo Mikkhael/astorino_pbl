@@ -168,7 +168,7 @@
    SPEED DefaultSpeed
    SPEED DefaultSpeedL MM/S 
    ; Setting approach distances
-   StorageApp = 50
+   StorageApp = 40
    TableApp   = 50
    AssembleApp= 30
    DisposeApp = 1
@@ -193,6 +193,7 @@
    
    ; Take Storage
    IsTakingFromStorage = 0
+   IsTakingTop = 0
    IF ((ActionTake > 10) * (ActionTake < 23) * (StorageOffset < 4)) THEN
       SIGNAL -2010 ; No Take Error
       TakeApp = StorageApp
@@ -209,15 +210,15 @@
          END
       END
       IF (ActionTake == 12) THEN
-         SIGNAL 2010 ; not yet taught
+         IsTakingTop = 1
          IF (StorageOffset == 0) THEN
-            POINT TakeDest = P14
+            POINT TakeDest = P8
          END
          IF (StorageOffset == 1) THEN
-            POINT TakeDest = P15
+            POINT TakeDest = P9
          END
          IF (StorageOffset == 2) THEN
-            POINT TakeDest = P16
+            POINT TakeDest = P10
          END
       END
    END
@@ -252,7 +253,17 @@
          END
          SIGNAL 3 ; Grab
          TWAIT 0.2
-         LDEPART TakeApp
+         IF (IsTakingTop == 1) THEN
+            LDEPART 30
+            TDRAW 0, 50, 0
+            LDEPART 6
+            TDRAW 0, -30, 6
+            SPEED 20 MM/S
+            TDRAW 0, 30, 0
+            SPEED DefaultSpeedL MM/S
+         ELSE
+            LDEPART TakeApp
+         END
       END
       unknown = 0
    END
