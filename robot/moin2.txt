@@ -46,7 +46,7 @@
    ActionTake  = 0
    ActionPut   = 0 
    BeforeTake  = 0 ; 0 none, 1 MidTable
-   BeforePut   = 0 ; 0 none, 1 MidTable, 2 MidDone, 3 MidTable HOME MidDone
+   BeforePut   = 0 ; 0 none, 1 MidTable, 2 MidDone, 3 Circ
    BeforeEnd   = 0 ; 0 none, 1 MidTable HOME, 2 MidDone HOME, 3 HOME
    ; Main Commands
    ; Bottom from Storage to Check
@@ -172,7 +172,7 @@
    TableApp   = 50
    AssembleApp= 30
    DisposeApp = 1
-   DoneApp    = 50
+   DoneApp    = 1
    
    ; Grabber
    IF (ForceGrabber == 1) THEN
@@ -324,18 +324,13 @@
          JMOVE P25 ; MidDone
       END
       IF (BeforePut == 3) THEN
-         JMOVE P26 ; Safe around
-         HOME
-         JMOVE P25
+         JMOVE P27 ; Circ
       END
       IF (PerformAssemble == 1) THEN
          JAPPRO P21, AssembleApp
          SPEED 10
          SPEED 5 MM/S
          LMOVE P21      
-         SIGNAL -3 ; Release Top to make it go in
-         TWAIT 0.5
-         SIGNAL 3  ; Grab Top
          TWAIT 0.5
          JMOVE P22 ; Rotate Top
          TWAIT 0.2

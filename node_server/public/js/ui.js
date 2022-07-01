@@ -1,4 +1,6 @@
+//@ts-check
 // References to all important User Interface controls and widgets
+//@ts-nocheck
 const UI = {
     /**@type {HTMLImageElement} */ cameraImage: null,
     imageAnalysis:{
@@ -17,13 +19,15 @@ const UI = {
     dashboard:{
         /**@type {HTMLElement} */ mqttConnectedState: null,
         /**@type {HTMLElement} */ robotConnectedState: null,
+        /**@type {HTMLElement} */ plcConnectedState: null,
+        /**@type {HTMLElement} */ currentExecutingCmd: null,
     },
     robotState: {
         /**@type {HTMLElement} */ executedCmds: null,
         /**@type {HTMLElement} */ executedDebugCmds: null,
     }
 };
-
+//@ts-check
 /**
  * @param {string} selector 
  * @return {any}
@@ -53,14 +57,20 @@ function initUIElements(){
     UI.robotState.executedCmds          = querySelector("#stateExecutedCmds");
     UI.robotState.executedDebugCmds     = querySelector("#stateExecutedDebugCmds");
 
-    UI.dashboard.mqttConnectedState   = querySelector("#mqtt_connection_state .state")
-    UI.dashboard.robotConnectedState  = querySelector("#robot_connection_state .state")
+    UI.dashboard.mqttConnectedState   = querySelector("#mqtt_connection_state .state");
+    UI.dashboard.robotConnectedState  = querySelector("#robot_connection_state .state");
+    UI.dashboard.plcConnectedState    = querySelector("#plc_connection_state .state");
+    UI.dashboard.currentExecutingCmd   = querySelector("#stateCurrentCommand");
 }
 
 let lastRobotState = {};
+let lastServerState = {};
 let dashboardState = {
     mqtt_connected: false,
     robot_connected: false,
+    plc_connected: false,
+
+    /**@type {number?} */ current_cmd: null,
 };
 
 let currentImageDataUrl = null; // Last bounded URL to the image data Blob
@@ -97,6 +107,13 @@ function getNewAssemblyRequest(){
     return {bottomColor, topColor};
 }
 
+function updateServerState(state = {}){
+    Object.assign(lastServerState, state);
+    if(state["plcConnected"]){
+        dashboardState.plc_connected = state["plcConnected"];
+    }
+}
+
 function updateRobotState(state = {}){
     Object.assign(lastRobotState, state);
     if(state["ExecutedCmds"] !== undefined){
@@ -104,6 +121,12 @@ function updateRobotState(state = {}){
     }
     if(state["ExecutedDebugCmds"] !== undefined){
         UI.robotState.executedDebugCmds.innerHTML = state['ExecutedDebugCmds'];
+    }
+    if(state["CurrentExecutingCmd"] !== undefined){
+        let val = state["CurrentExecutingCmd"];
+        console.log(val);
+        if(val == 255) val = null;
+        dashboardState.current_cmd = val;
     }
     // quick test
     for(let [key, value] of Object.entries(state)){
@@ -131,4 +154,11 @@ function updateDashboard()
 
     setConnected(UI.dashboard.mqttConnectedState, dashboardState.mqtt_connected);
     setConnected(UI.dashboard.robotConnectedState, dashboardState.robot_connected);
+    setConnected(UI.dashboard.plcConnectedState, dashboardState.plc_connected);
+
+    if(dashboardState.current_cmd == null){
+        UI.dashboard.currentExecutingCmd.innerHTML = "None.";
+    }else{
+        UI.dashboard.currentExecutingCmd.innerHTML = "Command nr " + dashboardState.current_cmd;
+    }
 }

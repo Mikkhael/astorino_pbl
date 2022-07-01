@@ -20,31 +20,37 @@ function MQTT_createClientAndConnect(){
     const mqttClient = new Paho.MQTT.Client(mqtt_url, mqtt_id);
     mqttClient.isConnected = false;
 
-    mqttClient.connect({
-        userName: mqtt_user,
-        password: mqtt_pass,
-        onSuccess: () => {
-            mqttClient.isConnected = true;
-            console.log("[MQTT] Connection Success");
-            mqttClient.subscribe("img/jpeg");
-            mqttClient.subscribe("test");
-            mqttClient.subscribe("analysis");
-            mqttClient.subscribe("robotstate");
-        },
-        onFailure: (err) => {
-            console.error("[MQTT] Connection Failed", err);
-        }
-    });
+    let performConnect = () => {
+        mqttClient.connect({
+            userName: mqtt_user,
+            password: mqtt_pass,
+            onSuccess: () => {
+                mqttClient.isConnected = true;
+                console.log("[MQTT] Connection Success");
+                mqttClient.subscribe("img/jpeg");
+                mqttClient.subscribe("test");
+                mqttClient.subscribe("analysis");
+                mqttClient.subscribe("serverstate");
+                mqttClient.subscribe("robotstate");
+            },
+            onFailure: (err) => {
+                console.error("[MQTT] Connection Failed", err);
+            }
+        });
+    }
+    
     mqttClient.onConnectionLost = (err) => {
         mqttClient.isConnected = false;
         console.error("[MQTT] Disconnected", err);
+        //setTimeout(performConnect, 10000);
     }
     mqttClient.onMessageArrived = (message) => {
         mqtt_messageHandler(message.destinationName, {
-            asString() {return message.payloadString;},
+            asString() {return (function(m){return m.payloadString;})(message);},
             asBytes() {return message.payloadBytes;},
         },
         message);
     }
+    performConnect();
     return mqttClient;
 }

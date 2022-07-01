@@ -165,6 +165,13 @@ function handleMqttMessage(topic, payload){
   }
 }
 
+function broadcastState(){
+  const payload = {plcConnected: mbclient.isConnected};
+  const payload_str = JSON.stringify(payload); // Convert the object to a string
+  mqttClient.publish("serverstate", payload_str); // Publish the message
+}
+let boradcastStateInterval = setInterval(broadcastState, 500);
+
 function broadcastImageAnalysis(avg, dev, cropSize, h, s, l){
   const payload = { // Create an object with image analysis results
     avg, dev, cropSize, h, s, l

@@ -9,7 +9,7 @@ const char *ssid = "Lab408"; // Enter your WiFi name
 const char *password = "Laborat408";  // Enter WiFi password
 
 // MQTT message broker
-const char *mqtt_broker = "192.168.0.243";
+const char *mqtt_broker = "192.168.0.104";
 const char *topic = "img/jpeg";
 const char *mqtt_username = "user";
 const char *mqtt_password = "password";
@@ -106,7 +106,7 @@ void setup() {
       delay(2000);
     }
   }
-  client.subscribe(topic);
+  //client.subscribe(topic);
 }
 void callback(char *topic, byte *payload, unsigned int length) {
   Serial.print("Message arrived in topic: ");

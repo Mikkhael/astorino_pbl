@@ -25,9 +25,11 @@ function handleMqttMessage(topic, payload){
         updateImageAnalysis(data);
     }else if(topic == "robotstate"){
         lastRobotStateMessageTime = Date.now();
-        console.log(payload.asString().length);
         const robotstate = parseMQTT_robotstate(payload.asBytes());
         updateRobotState(robotstate);
+    }else if(topic == "serverstate"){
+        const data = JSON.parse(payload.asString());
+        updateServerState(data);
     }else{
         console.log(`Unhandled topic:`, topic);
     }
@@ -61,7 +63,7 @@ const Mqtt_robotstate_labels_bool = [
     "QueueFull", "QueueEmpty", "Idle",
 ];
 const Mqtt_robotstate_labels_uint16 = [
-    "ExecutedCmds", "ExecutedDebugCmds"
+    "ExecutedCmds", "ExecutedDebugCmds", "CurrentExecutingCmd"
 ];
 
 /**
@@ -77,8 +79,10 @@ function parseMQTT_robotstate(payload){
         res[Mqtt_robotstate_labels_bool[i]] = (val == 2);
     }
     for(let i = 0; i<Mqtt_robotstate_labels_uint16.length; i++){
-        res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(i + Mqtt_robotstate_labels_bool.length, false);
+        //console.log(Mqtt_robotstate_labels_uint16[i],i*2 + Mqtt_robotstate_labels_bool.length);
+        res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(2*i + Mqtt_robotstate_labels_bool.length, true);
     }
+    //console.log(payload);
     return res;
 }
 
@@ -86,7 +90,7 @@ function parseMQTT_robotstate(payload){
 
 function dashboardUpdateRoutine(){
     dashboardState.mqtt_connected = mqttClient.isConnected;
-    dashboardState.robot_connected = ((lastRobotStateMessageTime - Date.now()) >= 5000);
+    dashboardState.robot_connected = ((Date.now() - lastRobotStateMessageTime) <= 2000);
     updateDashboard();
 }
 setInterval(dashboardUpdateRoutine, 1000);

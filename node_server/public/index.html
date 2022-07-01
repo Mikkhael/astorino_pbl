@@ -24,6 +24,10 @@
 			<div class="name">ROBOT</div>
 			<div class="state">DISCONNECTED</div>
 		</div>
+		<div id="plc_connection_state">
+			<div class="name">PLC</div>
+			<div class="state">DISCONNECTED</div>
+		</div>
 	</section>
 
 	<fieldset>
@@ -67,6 +71,7 @@
 	<fieldset>
 		<legend>Robot State</legend>
 		<p>Executed <span id="stateExecutedCmds">0</span> commands (<span id="stateExecutedDebugCmds">0</span> debug)</p>
+		<p>Now Executing: <span id="stateCurrentCommand"></span></p>
 		<fieldset>
 			<legend>Main Signals</legend>
 			<ul class="diodes_list">

@@ -58,6 +58,7 @@ public:
         int bit  = num % WordSize;
         return msgToSend.parts[part] & (1 << bit);
     }
+    int outputCurrentMsgPart_partsSent = 0;
     void outputCurrentMsgPart(bool invert = false){
         ioManager.dio.write(DIO::Function::OSend, invert);
         uint8_t cmdPart = 0;
@@ -102,8 +103,10 @@ public:
     bool awaitForIdle = false;
     unsigned int executedCmds = 0;
     unsigned int executedDebugCmds = 0;
+    Msg lastSentMsg;
     void awaitForFinish(){
         wasLastMessageDebug = msgToSend.isDebug;
+        lastSentMsg = msgToSend;
         awaitForIdle = true;
     }
     

@@ -31,6 +31,7 @@ struct MQTT{
     // Numbers
     uint16_t executedCmds = 0;
     uint16_t executedDebugCmds = 0;
+    uint16_t currentExecutingCmd = 255; // 255 - none command
 
     Payload(){
       for(int i=0; i<DIO::FunctionsCount; i++){
@@ -46,13 +47,14 @@ struct MQTT{
     }
   } payload;
 
-  static_assert(sizeof(Payload) == DIO::FunctionsCount + 3 + 2*2);
+  static_assert(sizeof(Payload) == DIO::FunctionsCount + 3 + 3*2);
 
   unsigned long lastUpdate = 0;
   bool trySendUpdate(){
     if(client.connected() && millis() - lastUpdate > updateInterval){
       payload.populateDio();
       //Serial.println("MQTT Sent Update");
+      //Serial.printf("Executed cmd: %d, size: %d\n", payload.currentExecutingCmd, sizeof(payload));
       client.publish("robotstate", (uint8_t*)(&payload), sizeof(payload), false);
       lastUpdate = millis();
       return true;

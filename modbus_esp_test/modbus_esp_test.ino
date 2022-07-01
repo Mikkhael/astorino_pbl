@@ -124,6 +124,7 @@ void loop() {
   mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? 2 : 1;
   mqtt.payload.executedCmds       = acm.sender.executedCmds;
   mqtt.payload.executedDebugCmds  = acm.sender.executedDebugCmds;
+  mqtt.payload.currentExecutingCmd = acm.sender.awaitForIdle ? acm.sender.lastSentMsg.parts[0] : 255;
 
     
   //delay(100);
