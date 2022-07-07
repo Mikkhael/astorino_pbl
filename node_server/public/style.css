@@ -66,6 +66,34 @@ body > .connections_state > * > .state.connected{
 
 /* Robot Controler State */
 
+.basicRobotState span{
+    font-weight: bold;
+}
+
+.coloredStatus{
+    padding: 1% 10%;
+    text-align: center;
+    width: 100%;
+    border-width: 3px;
+    border-style: solid;
+    /*[type="idle"]*/
+    background-color: #90e79d;
+    border-color: #4b8053;
+}
+.coloredStatus[type="sending"]{
+    background-color: #90e4e7;
+    border-color: #4b8077;
+}
+
+.coloredStatus[type="working"]{
+    background-color: #e1e790;
+    border-color: #807b4b;
+}
+
+
+
+/* Advanced Robot Controler State */
+
 .diode{
     height: 0.8em;
     width: 0.8em;

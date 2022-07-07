@@ -21,6 +21,14 @@ const UI = {
         /**@type {HTMLElement} */ robotConnectedState: null,
         /**@type {HTMLElement} */ plcConnectedState: null,
         /**@type {HTMLElement} */ currentExecutingCmd: null,
+        
+        /**@type {HTMLElement} */ grabber: null,
+        /**@type {HTMLElement} */ element: null,
+        /**@type {HTMLElement} */ button:  null,
+        /**@type {HTMLElement} */ robotAction:  null,
+        /**@type {HTMLElement} */ robotActionText:  null,
+        /**@type {HTMLElement} */ assemblyStatus:  null,
+        /**@type {HTMLElement} */ assemblyStatusText:  null,
     },
     robotState: {
         /**@type {HTMLElement} */ executedCmds: null,
@@ -61,6 +69,14 @@ function initUIElements(){
     UI.dashboard.robotConnectedState  = querySelector("#robot_connection_state .state");
     UI.dashboard.plcConnectedState    = querySelector("#plc_connection_state .state");
     UI.dashboard.currentExecutingCmd   = querySelector("#stateCurrentCommand");
+
+    UI.dashboard.grabber = querySelector("#grabberStatus");
+    UI.dashboard.button = querySelector("#buttonStatus");
+    UI.dashboard.element = querySelector("#elementStatus");
+    UI.dashboard.robotAction = querySelector("#robotAction");
+    UI.dashboard.robotActionText = querySelector("#robotActionText");
+    UI.dashboard.assemblyStatus = querySelector("#assemblyStatus");
+    UI.dashboard.assemblyStatusText = querySelector("#assemblyStatusText");
 }
 
 let lastRobotState = {};
@@ -70,6 +86,13 @@ let dashboardState = {
     robot_connected: false,
     plc_connected: false,
 
+    grabberClosed: false,
+    grabberClosedError: false,
+    buttonPressed: false,
+    elementDetected: false,
+    isIdle: false,
+
+    assembly_status: 0,
     /**@type {number?} */ current_cmd: null,
 };
 
@@ -139,6 +162,13 @@ function updateRobotState(state = {}){
         if(val == 255) val = null;
         dashboardState.current_cmd = val;
     }
+
+    dashboardState.grabberClosed = lastRobotState["GGrabbed"];
+    dashboardState.grabberClosedError = lastRobotState["GGrabbed"] != lastRobotState["GGrab"];
+    dashboardState.elementDetected = lastRobotState["GFar1"];
+    dashboardState.buttonPressed = lastRobotState["GTens"];
+    dashboardState.isIdle = lastRobotState["Idle"];
+
     // quick test
     for(let [key, value] of Object.entries(state)){
         let element = document.querySelector(`.diode#state${key}`);
@@ -149,6 +179,30 @@ function updateRobotState(state = {}){
         element.parentElement.style.display = "flex";
     }
 }
+
+const RobotCommandNames = {
+    "0": "Getting Bottom Piece from Storage 1",
+    "1": "Getting Bottom Piece from Storage 2",
+    "2": "Getting Bottom Piece from Storage 3",
+    "3": "Getting Bottom Piece from Storage 4",
+    "4": "Getting Bottom Piece from Storage 5",
+
+    "5": "Getting Top Piece from Storage 1",
+    "6": "Getting Top Piece from Storage 2",
+    "7": "Getting Top Piece from Storage 3",
+    "8": "Getting Top Piece from Storage 4",
+    "9": "Getting Top Piece from Storage 5",
+
+    "20": "Putting Bottom Piece on Turntable",
+    "21": "Assembling the Button on Turntable",
+
+    "10": "Moving Assembled Button to Exit",
+
+    "15": "Discarding Bottom Piece",
+    "16": "Disassembling and Discarding Top Piece",
+    "17": "Discarding Assembled Button",
+
+};
 
 function updateDashboard()
 {
@@ -170,9 +224,27 @@ function updateDashboard()
     setConnected(UI.dashboard.robotConnectedState, dashboardState.robot_connected);
     setConnected(UI.dashboard.plcConnectedState, dashboardState.plc_connected);
 
-    if(dashboardState.current_cmd == null){
-        UI.dashboard.currentExecutingCmd.innerHTML = "None.";
-    }else{
-        UI.dashboard.currentExecutingCmd.innerHTML = "Command nr " + dashboardState.current_cmd;
+    if(dashboardState.robot_connected){
+        if(dashboardState.current_cmd == null){
+            UI.dashboard.currentExecutingCmd.innerHTML = "None.";
+            if(dashboardState.isIdle){
+                UI.dashboard.robotAction.setAttribute("type", "idle");
+                UI.dashboard.robotActionText.innerHTML = "IDLE";
+            }else{
+                UI.dashboard.robotAction.setAttribute("type", "sending");
+                UI.dashboard.robotActionText.innerHTML = "Sending next command...";
+            }
+        }else{
+            UI.dashboard.currentExecutingCmd.innerHTML = "Command nr " + dashboardState.current_cmd;
+            UI.dashboard.robotAction.setAttribute("type", "working");
+            const text = RobotCommandNames[dashboardState.current_cmd] || "";
+            UI.dashboard.robotActionText.innerHTML = `${text} (${dashboardState.current_cmd})`;
+        }
+
+        UI.dashboard.grabber.innerHTML = dashboardState.grabberClosed ? "CLOSED" : "OPEN";
+        UI.dashboard.element.innerHTML = dashboardState.elementDetected ? "DETECTED" : "NOT DETECTED";
+        UI.dashboard.button.innerHTML  = dashboardState.buttonPressed ? "PRESSED" : "NOT PRESSED";
     }
+
 }
+

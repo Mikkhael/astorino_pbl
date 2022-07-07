@@ -237,7 +237,7 @@ function broadcastNewImage(data){
    // const rangehighR;
    function matchcolor(avg)
    {
-	   218,200,171.25
+	   //218,200,171.25
 
 
 	    let rangehighR=250;
@@ -274,7 +274,7 @@ function broadcastNewImage(data){
 	  r /= 255, g /= 255, b /= 255;
 
 	  var max = Math.max(r, g, b), min = Math.min(r, g, b);
-	  var h, s, l = (max + min) / 2;
+	  var h = 0, s = 0, l = (max + min) / 2;
 
 	  if (max == min) {
 		h = s = 0; // achromatic

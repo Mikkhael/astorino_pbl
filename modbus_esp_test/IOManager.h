@@ -347,7 +347,7 @@ struct IOManager{
       
       dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     0);
       dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     1);
-      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   true,   DIO::Type::BoardPcf,     2);
+      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     2);
     }
     
     bool refreshOutState(bool noDelayError = true){

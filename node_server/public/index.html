@@ -47,6 +47,22 @@
 		
 	</fieldset>
 
+
+
+	<fieldset class="basicRobotState">
+		<legend>Robot State</legend>
+		<div>
+			<p>Grabber: <span id="grabberStatus">??</span> <span id="grabberClosedError"></span></p>
+			<p>Element: <span id="elementStatus">??</span></p>
+			<p>Button: <span id="buttonStatus">??</span></p>
+			<div id="robotAction" class="coloredStatus">
+				Robot Action: <span id="robotActionText">??</span>
+			</div>
+			<div id="assemblyStatus" class="coloredStatus">
+				Assembly Status: <span id="assemblyStatusText">??</span>
+			</div>
+		</div>
+	</fieldset>
 		
 	<fieldset>
 		<legend>Send Robot Command</legend>
@@ -78,16 +94,15 @@
 		
 	</fieldset>
 
-
 	<fieldset>
-		<legend>Robot State</legend>
+		<legend>Advanced Robot State</legend>
 		<p>Executed <span id="stateExecutedCmds">0</span> commands (<span id="stateExecutedDebugCmds">0</span> debug)</p>
 		<p>Now Executing: <span id="stateCurrentCommand"></span></p>
 		<fieldset>
 			<legend>Main Signals</legend>
 			<ul class="diodes_list">
 				<li><span>Idle:</span> <div class="diode" id="stateIdle"></div></li>
-				<li><span>Element NOT Grabbed:</span> <div class="diode" id="stateGFar1"></div></li>
+				<li><span>Element Grabbed:</span> <div class="diode" id="stateGFar1"></div></li>
 				<li><span>Press:</span> <div class="diode" id="stateGTestButt"></div></li>
 				<li><span>Pressed:</span> <div class="diode" id="stateGTens"></div></li>
 				<li><span>Grab:</span> <div class="diode" id="stateGGrab"></div></li>
