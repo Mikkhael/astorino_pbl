@@ -49,22 +49,33 @@
 
 		
 	<fieldset>
-		<legend>Send New Assembly Request</legend>
-		<label for="bottomColorSelect">Bottom Color:</label>
-		<select name="bottomColor" id="bottomColorSelect">
-			<option value="0">Color 0</option>
-			<option value="1">Color 1</option>
-			<option value="2">Color 2</option>
-		</select>
-		<br>
-		<label for="topColorSelect">Top Color:</label>
-		<select name="topColor" id="topColorSelect">
-			<option value="0">Color 0</option>
-			<option value="1">Color 1</option>
-			<option value="2">Color 2</option>
-		</select>
-		<br>
-		<button onclick="performNewAssemblyRequest()">SEND</button>
+		<legend>Send Robot Command</legend>
+		<fieldset>
+			<legend>Single Assembly Request</legend>
+			<label for="bottomColorSelect">Bottom Color:</label>
+			<select name="bottomColor" id="bottomColorSelect">
+				<option value="0">Blue</option>
+				<option value="1">Purple</option>
+				<option value="2">Green</option>
+			</select>
+			<label for="topColorSelect">Top Color:</label>
+			<select name="topColor" id="topColorSelect">
+				<option value="0">Blue</option>
+				<option value="1">Purple</option>
+				<option value="2">Green</option>
+			</select>
+			<br>
+			<button onclick="performNewAssemblyRequest()">SEND</button>
+		</fieldset>
+		
+		<fieldset>
+			<legend>Custom Robot Commands</legend>
+			<label for="customCommandValues">Robot Commands (comma seperated):</label>
+			<input type="text" id="customCommandValues">
+			<br>
+			<button onclick="performCustomCommandsRequest()">SEND</button>
+		</fieldset>
+		
 	</fieldset>
 
 

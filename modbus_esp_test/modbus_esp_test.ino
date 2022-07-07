@@ -70,6 +70,7 @@ void setup() {
   mqtt.address = "192.168.0.104";
   mqtt.user    = "user";
   mqtt.pass    = "password";
+  mqtt.acm     = &acm;
   mqtt.begin();
 
   ////////// Modbus

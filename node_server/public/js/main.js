@@ -50,7 +50,28 @@ function sendNewAssemblyRequest(bottomColor, topColor){
 
 function performNewAssemblyRequest(){
     const request = getNewAssemblyRequest();
-    sendNewAssemblyRequest(request.bottomColor, request.topColor);
+    let r = confirm(`Assemble element for ${request.bottomColorName} button with ${request.topColorName} top ?`);
+    if(r){
+        sendNewAssemblyRequest(request.bottomColor, request.topColor);
+    }
+}
+
+function sendCustomCommandsRequest(commands){
+    const payload = Uint8Array.from(commands);
+    mqttClient.send('customCommand', payload);
+}
+
+function performCustomCommandsRequest(){
+    const str = UI.assemblyRequest.customCommandInput.value;
+    const commands = str.split(',').map(x => parseInt(x.trim())).filter(x => +x >= 0 && +x <= 255);
+    if(commands.length == 0){
+        alert("No commands has beed entered.");
+    }else{
+        let r = confirm(`Send commands: [${commands}]?`);
+        if(r){
+            sendCustomCommandsRequest(commands);
+        }
+    }
 }
 
 
@@ -84,6 +105,18 @@ function parseMQTT_robotstate(payload){
     }
     //console.log(payload);
     return res;
+}
+
+function sendDebugRobotState(data = {}){
+    const payload = new ArrayBuffer(Mqtt_robotstate_labels_bool.length + Mqtt_robotstate_labels_uint16.length * 2);
+    const view = new DataView(payload);
+    for(let i = 0; i<Mqtt_robotstate_labels_bool.length; i++){
+        view.setUint8(i, data[Mqtt_robotstate_labels_bool[i]] ?? 1);
+    }
+    for(let i = 0; i<Mqtt_robotstate_labels_uint16.length; i++){
+        view.setUint16(Mqtt_robotstate_labels_bool.length + i*2, data[Mqtt_robotstate_labels_uint16[i]] ?? 0, true);
+    }
+    mqttClient.send("robotstate", payload);
 }
 
 // Periodically update dashboard

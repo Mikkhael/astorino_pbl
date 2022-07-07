@@ -2,6 +2,7 @@
 #include <PubSubClient.h>
 #include "ESP8266WiFi.h"
 #include "IOManager.h"
+#include "AstorinoCmdManager.h"
 
 
 struct MQTT{
@@ -17,6 +18,7 @@ struct MQTT{
   unsigned long reconnectionTimeout = 5000;
   unsigned long updateInterval = 500;
 
+  AstorinoCmdManager* acm;
 
   MQTT() : client(clientWiFi) {}
 
@@ -81,11 +83,24 @@ struct MQTT{
   void onConnect(){
     Serial.print("MQTT Connected to ");
     Serial.println(address);
+    client.subscribe("customCommand");
+  }
+
+  void handleRequest(char* topic, uint8_t* payload, unsigned int length){
+    if(strcmp(topic, "customCommand")){
+      Serial.printf("Received %d custom commands via MQTT\n", length);
+      for(unsigned int i=0; i<length; i++){
+        Msg msg;
+        msg.parts[0] = payload[i];
+        acm->enqueueCommand(msg, true);
+      }
+    }
   }
 
   void begin(){
     client.disconnect();
     client.setServer(address.c_str(), port);
+    client.setCallback([this](char* topic, uint8_t* payload, unsigned int length){this->handleRequest(topic, payload, length);});
     tryReconnect();
   }
 

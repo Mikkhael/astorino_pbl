@@ -14,6 +14,7 @@ const UI = {
     assemblyRequest: {
         /**@type {HTMLSelectElement} */ bottomColorSelect: null,
         /**@type {HTMLSelectElement} */ topColorSelect: null,
+        /**@type {HTMLInputElement} */  customCommandInput: null,
     },
     dashboard:{
         /**@type {HTMLElement} */ mqttConnectedState: null,
@@ -51,6 +52,7 @@ function initUIElements(){
 
     UI.assemblyRequest.bottomColorSelect = querySelector("#bottomColorSelect");
     UI.assemblyRequest.topColorSelect    = querySelector("#topColorSelect");
+    UI.assemblyRequest.customCommandInput = querySelector("#customCommandValues");
 
     UI.robotState.executedCmds          = querySelector("#stateExecutedCmds");
     UI.robotState.executedDebugCmds     = querySelector("#stateExecutedDebugCmds");
@@ -90,7 +92,7 @@ function rgbColorFromArray(arr){
 }
 
 
-function updateImageAnalysis(data){
+function updateImageAnalysis(data = {}){
     const hsl = [data.h, data.s, data.l];
     UI.imageAnalysis.avg.innerHTML = data.avg.map(x => x.toFixed(0));
     UI.imageAnalysis.dev.innerHTML = data.dev.map(x => x.toFixed(0));
@@ -109,9 +111,11 @@ function updateImageAnalysis(data){
 }
 
 function getNewAssemblyRequest(){
-    const bottomColor = UI.assemblyRequest.bottomColorSelect.value;
-    const topColor    = UI.assemblyRequest.topColorSelect.value;
-    return {bottomColor, topColor};
+    const bottomColor     = UI.assemblyRequest.bottomColorSelect.value;
+    const topColor        = UI.assemblyRequest.topColorSelect.value;
+    const bottomColorName = UI.assemblyRequest.bottomColorSelect.options[bottomColor].text;
+    const topColorName    = UI.assemblyRequest.topColorSelect.options[topColor].text;
+    return {bottomColor, topColor, bottomColorName, topColorName};
 }
 
 function updateServerState(state = {}){
@@ -156,6 +160,9 @@ function updateDashboard()
         if(state){
             element.classList.add("connected");
             element.innerHTML = "CONNECTED";
+        }else{
+            element.classList.remove("connected");
+            element.innerHTML = "DISCONNECTED";
         }
     }
 
