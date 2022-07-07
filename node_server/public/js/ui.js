@@ -2,15 +2,14 @@
 // References to all important User Interface controls and widgets
 //@ts-nocheck
 const UI = {
-    /**@type {HTMLImageElement} */ cameraImage: null,
     imageAnalysis:{
+        /**@type {HTMLImageElement} */ cameraImage: null,
+        /**@type {HTMLElement} */      cropper: null,
         /**@type {HTMLElement} */ avg: null,
         /**@type {HTMLElement} */ dev: null,
+        /**@type {HTMLElement} */ hsl: null,
         /**@type {HTMLElement} */ cropSize: null,
         /**@type {HTMLElement} */ avgColor: null,
-        /**@type {HTMLElement} */ h: null,
-        /**@type {HTMLElement} */ l: null,
-        /**@type {HTMLElement} */ s: null,
     },
     assemblyRequest: {
         /**@type {HTMLSelectElement} */ bottomColorSelect: null,
@@ -41,15 +40,14 @@ function querySelector(selector){
 }
 
 function initUIElements(){
-    UI.cameraImage =  querySelector('#camera_image');
+    UI.imageAnalysis.cameraImage =  querySelector('#camera_image');
 
     UI.imageAnalysis.avg = querySelector('#avg');
     UI.imageAnalysis.dev = querySelector('#dev');
+    UI.imageAnalysis.hsl = querySelector('#hsl');
     UI.imageAnalysis.cropSize = querySelector('#cropSize');
     UI.imageAnalysis.avgColor = querySelector('#avgColor');
-	UI.imageAnalysis.h = querySelector('#h');
-	UI.imageAnalysis.s = querySelector('#s');
-	UI.imageAnalysis.l = querySelector('#l');
+    UI.imageAnalysis.cropper = querySelector("#cropper");
 
     UI.assemblyRequest.bottomColorSelect = querySelector("#bottomColorSelect");
     UI.assemblyRequest.topColorSelect    = querySelector("#topColorSelect");
@@ -83,7 +81,7 @@ function updateCameraImage(newImageData){
         URL.revokeObjectURL(currentImageDataUrl); // Free the memory from the old Blob
     }
     currentImageDataUrl = URL.createObjectURL(newImageData) // Bind new Blob to an URL
-    UI.cameraImage.src = currentImageDataUrl // Set the image URL to the new Blob
+    UI.imageAnalysis.cameraImage.src = currentImageDataUrl // Set the image URL to the new Blob
 }
 
 // Convert a 3-element float array to a CSS string representing an RGB color
@@ -91,14 +89,23 @@ function rgbColorFromArray(arr){
     return `rgb(${ arr.map(x => Math.floor(x)).join(',') })`;
 }
 
+
 function updateImageAnalysis(data){
-    UI.imageAnalysis.avg.innerHTML = data.avg;
-    UI.imageAnalysis.dev.innerHTML = data.dev;
+    const hsl = [data.h, data.s, data.l];
+    UI.imageAnalysis.avg.innerHTML = data.avg.map(x => x.toFixed(0));
+    UI.imageAnalysis.dev.innerHTML = data.dev.map(x => x.toFixed(0));
+    UI.imageAnalysis.hsl.innerHTML = hsl.map(x => x.toFixed(3));
+
+    UI.imageAnalysis.avgColor.style.backgroundColor = `rgb(${data.avg})`;
+    UI.imageAnalysis.avgColor.style.width = UI.imageAnalysis.cameraImage.clientWidth + 'px';
+
     UI.imageAnalysis.cropSize.innerHTML = data.cropSize;
-    UI.imageAnalysis.avgColor.style.backgroundColor = rgbColorFromArray(data.avg);
-	UI.imageAnalysis.h.innerHTML = data.h;
-	UI.imageAnalysis.l.innerHTML = data.l;
-	UI.imageAnalysis.s.innerHTML = data.s;
+
+    UI.imageAnalysis.cropper.style.height = data.cropSize*2 + 'px';
+    UI.imageAnalysis.cropper.style.width  = data.cropSize*2 + 'px';
+    UI.imageAnalysis.cropper.style.left   = (UI.imageAnalysis.cameraImage.clientWidth/2  - data.cropSize) + 'px';
+    UI.imageAnalysis.cropper.style.top    = (UI.imageAnalysis.cameraImage.clientHeight/2 - data.cropSize) + 'px';
+    UI.imageAnalysis.cropper.style.display = 'block';
 }
 
 function getNewAssemblyRequest(){

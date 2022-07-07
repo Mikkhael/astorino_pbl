@@ -98,3 +98,20 @@ ul.diodes_list > li{
 ul.diodes_list > li > span{
     width: 15ch;
 }
+
+
+/* Color Section */
+
+#camera_image{
+    width: 320px;
+    height: 240px;
+    margin: 0px;
+    padding: 0px;
+}
+
+#cropper{
+    display: none;
+    box-sizing: content-box;
+    border: 3px solid red;
+    position: absolute;
+}

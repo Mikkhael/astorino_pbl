@@ -33,17 +33,17 @@
 	<fieldset>
 		<legend>Image Recognition</legend>
 		
-		<img src="" alt="" id="camera_image">
-		<ol>
-			<li><p>Average color: <span id="avg"></span></p></li>
-			<li><p>Standard diviation of color: <span id="dev"></span></p> </li>
-			<li><p>Crop Size: <span id="cropSize"></span></p> </li>
-			<li><p>Value of H : <span id="h"></span></p> </li>
-			<li><p>Value of S : <span id="s"></span></p> </li>
-			<li><p>Value of L : <span id="l"></span></p> </li>
-		</ol>
-		
+		<div style="position: relative">
+			<img src="" alt="" id="camera_image">
+			<div id="cropper"></div>
+		</div>
+
 		<div id="avgColor" style="height: 20px; width: 40px"></div>
+		<p>Average RGB color: <span id="avg">??</div></p>
+		<p>Average HSL color: <span id="hsl">??</span></p>
+		<p>Standard diviation of RGB color: <span id="dev">??</span></p>
+		<p>Crop Size: <span id="cropSize">??</span></p>
+		
 		
 	</fieldset>
 
