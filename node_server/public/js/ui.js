@@ -141,10 +141,34 @@ function getNewAssemblyRequest(){
     return {bottomColor, topColor, bottomColorName, topColorName};
 }
 
+const PlcStateNames = {
+
+    "0": "IDLE",
+
+    "-1": "Element has NOT been grabbed from Storage. Awaiting operator's decision.",
+};
+
 function updateServerState(state = {}){
     Object.assign(lastServerState, state);
-    if(state["plcConnected"]){
+    if(state["plcConnected"] != undefined){
         dashboardState.plc_connected = state["plcConnected"];
+    }
+    if(state["plcState"] != undefined){
+        let s = state["plcState"];
+        if(s == 0){
+            UI.dashboard.assemblyStatus.setAttribute('type', 'idle');
+        }
+        else if(s > 0x8FFF){
+            //console.log(s);
+            s = -((0xFFFF-s)+1);
+            //console.log(s);
+            UI.dashboard.assemblyStatus.setAttribute('type', 'error');
+        }
+        else{
+            UI.dashboard.assemblyStatus.setAttribute('type', 'working');
+        }
+        const text = PlcStateNames[s] ?? "";
+        UI.dashboard.assemblyStatusText.innerHTML = `${text} (${s})`;
     }
 }
 

@@ -185,6 +185,10 @@ struct CommandManager
       for(auto& state : ioManager.pcfStates){
         state.isHalted = val;
       }
+      if(val){
+        digitalWrite(SDA, LOW);
+        digitalWrite(SCL, LOW);
+      }
     }
     else if(args[0] == "r"){
       ioManager.dio.getModule(DIO::Type::RobotOut).readall();

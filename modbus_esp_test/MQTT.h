@@ -45,6 +45,9 @@ struct MQTT{
       for(int i=0; i<DIO::FunctionsCount; i++){
         auto state = ioManager.dio.readState(DIO::getFunctionFromIndex(i));
         dio[i] = uint8_t(state);
+        /*if(DIO::getFunctionFromIndex(i) == DIO::ButtonPressed){
+          Serial.printf("Sending Button Pressed %d\n", state == 1)
+        }*/
       }
     }
   } payload;
@@ -87,7 +90,8 @@ struct MQTT{
   }
 
   void handleRequest(char* topic, uint8_t* payload, unsigned int length){
-    if(strcmp(topic, "customCommand")){
+    //Serial.printf("Topic: %s\n", topic);
+    if(strcmp(topic, "customCommand") == 0){
       Serial.printf("Received %d custom commands via MQTT\n", length);
       for(unsigned int i=0; i<length; i++){
         Msg msg;

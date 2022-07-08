@@ -13,6 +13,9 @@ const ModbusPLCAddresses = {
         FinishedID:     561,
         Value:          562,
     },
+    Status: {
+        Value:          563,
+    }
 }
 Object.freeze(ModbusPLCAddresses);
 
@@ -75,6 +78,8 @@ class Modbus extends jsmodbus.client.TCP{
         this.onAssemblyCompleted = function(requestId, request){console.log("AssC", requestId, request);}
         this.onColorUpdateSend = function(finishedId, color, err){console.log("Col", finishedId, color, err);};
         this.onPollError = function(err){console.log("Err", err)};
+
+        this.plcState = 0;
     }
 
     /**
@@ -108,11 +113,13 @@ class Modbus extends jsmodbus.client.TCP{
             this.readHoldingRegisters(ModbusPLCAddresses.Color.RequestID, 1),
             this.readHoldingRegisters(ModbusPLCAddresses.Color.FinishedID, 1),
             this.readHoldingRegisters(ModbusPLCAddresses.Assemble.FinishedID, 1),
+            this.readHoldingRegisters(ModbusPLCAddresses.Status.Value, 1)
         ])
         .then((values) => {
             this.polledColorRequestID     = values[0].response.body.values[0];
             this.polledColorFinishedID    = values[1].response.body.values[0];
             this.polledAssemblyFinishedID = values[2].response.body.values[0];
+            this.plcState                 = values[3].response.body.values[0];
             if(this.lastAssemblyRequestID < 0)
                 this.lastAssemblyRequestID = this.polledAssemblyFinishedID;
             const completedRequest = this.assemblyToComplete[this.polledAssemblyFinishedID];

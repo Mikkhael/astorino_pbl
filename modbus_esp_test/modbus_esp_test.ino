@@ -120,9 +120,11 @@ void loop() {
 
   ioManager.dio.write(DIO::Function::GTestButt, mbserver.isTestButton());
 
-  mqtt.payload.idle       = acm.isRobotIdle        ? 2 : 1;
-  mqtt.payload.queueEmpty = acm.cmdQueue.isempty() ? 2 : 1;
-  mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? 2 : 1;
+  uint8_t ON = static_cast<uint8_t>(DIO::State::ON);
+  uint8_t OFF = static_cast<uint8_t>(DIO::State::OFF);
+  mqtt.payload.idle       = acm.isRobotIdle        ? ON : OFF;
+  mqtt.payload.queueEmpty = acm.cmdQueue.isempty() ? ON : OFF;
+  mqtt.payload.queueFull  = acm.cmdQueue.isfull()  ? ON : OFF;
   mqtt.payload.executedCmds       = acm.sender.executedCmds;
   mqtt.payload.executedDebugCmds  = acm.sender.executedDebugCmds;
   mqtt.payload.currentExecutingCmd = acm.sender.awaitForIdle ? acm.sender.lastSentMsg.parts[0] : 255;

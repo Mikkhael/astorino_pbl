@@ -166,7 +166,7 @@ function handleMqttMessage(topic, payload){
 }
 
 function broadcastState(){
-  const payload = {plcConnected: mbclient.isConnected};
+  const payload = {plcConnected: mbclient.isConnected, plcState: mbclient.plcState};
   const payload_str = JSON.stringify(payload); // Convert the object to a string
   mqttClient.publish("serverstate", payload_str); // Publish the message
 }

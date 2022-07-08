@@ -342,12 +342,12 @@ struct IOManager{
       dio.assignFunctionToPin(DIO::Function::IAck,     DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(2));
       dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
 
-      dio.assignFunctionToPin(DIO::Function::GGrab,     DIO::PinMode::Output,  true,   DIO::Type::GPIO,     5);
-      dio.assignFunctionToPin(DIO::Function::GTestButt, DIO::PinMode::Output,  false,  DIO::Type::GPIO,     6);
+      dio.assignFunctionToPin(DIO::Function::GGrab,     DIO::PinMode::Output,  false,  DIO::Type::GPIO,    7);
+      dio.assignFunctionToPin(DIO::Function::GTestButt, DIO::PinMode::Output,  false,  DIO::Type::GPIO,    6);
       
-      dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     0);
-      dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     1);
-      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   false,  DIO::Type::BoardPcf,     2);
+      dio.assignFunctionToPin(DIO::Function::GTens,    DIO::PinMode::Input,   true,  DIO::Type::BoardPcf,     0);
+      dio.assignFunctionToPin(DIO::Function::GGrabbed, DIO::PinMode::Input,   true,  DIO::Type::BoardPcf,     1);
+      dio.assignFunctionToPin(DIO::Function::GFar1,    DIO::PinMode::Input,   true,  DIO::Type::BoardPcf,     2);
     }
     
     bool refreshOutState(bool noDelayError = true){
@@ -439,7 +439,7 @@ struct IOManager{
     bool success = refreshInState(false);
 
     if(success){
-      dio.write(DIO::Function::GGrab, dio.readVal(DIO::Function::IGrab, false));
+      dio.write(DIO::Function::GGrab, !dio.readVal(DIO::Function::IGrab, false));
     }else{
       dio.write(DIO::Function::GGrab, false, true);
     }

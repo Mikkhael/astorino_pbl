@@ -118,6 +118,7 @@ struct MBServer{
     void set(RegName name, bool value){
         auto reg = getReg(name);
         reg->value = value ? 0xFF00 : 0x0000;
+        //Serial.printf("Setting reg nr %d to %d\n", reg->address.address, value);
     }
 
 

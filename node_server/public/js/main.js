@@ -97,7 +97,7 @@ function parseMQTT_robotstate(payload){
     for(let i = 0; i<Mqtt_robotstate_labels_bool.length; i++){
         const val = view.getUint8(i);
         if(val == 0) continue;
-        res[Mqtt_robotstate_labels_bool[i]] = (val == 2);
+        res[Mqtt_robotstate_labels_bool[i]] = (val != 2);
     }
     for(let i = 0; i<Mqtt_robotstate_labels_uint16.length; i++){
         //console.log(Mqtt_robotstate_labels_uint16[i],i*2 + Mqtt_robotstate_labels_bool.length);
