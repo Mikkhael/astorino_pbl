@@ -71,10 +71,10 @@ public:
         ioManager.setCmd(cmdPart);
         ioManager.dio.write(DIO::Function::OSend, !invert);
         awaitAck = !invert;
-        if(invert)
-          debugf("Send = 0, Await !ACK\n");
-        else
-          debugf("Send = 1, Await ACK\n");
+        // if(invert)
+        //   debugf("Send = 0, Await !ACK\n");
+        // else
+        //   debugf("Send = 1, Await ACK\n");
     }
 
     bool updateOutputCurrentMsgPart = false;
@@ -94,7 +94,7 @@ public:
         return true;
       }
       bitsToSend = WordSize;
-      debugf("Starting to send %s Cmd (0x%.4X | 0x%.4X | 0x%.4X ), length %d\n", state==State::Advanced ? "Advanced" : "Alternating", msgToSend.parts[0], msgToSend.parts[1], msgToSend.parts[2], bitsToSend);
+      debugf("Starting to send %s Cmd (%u | %u | %u ), length %d\n", state==State::Advanced ? "Advanced" : "Alternating", msgToSend.parts[0], msgToSend.parts[1], msgToSend.parts[2], bitsToSend);
       updateOutputCurrentMsgPart = true;
       return true;
     }
@@ -153,14 +153,14 @@ public:
             if(awaitAck && robotAck){
                 ioManager.dio.write(DIO::Function::OSend, false);
                 awaitAck = false;
-                debugf("Send = 0, Await !ACK\n");
+                //debugf("Send = 0, Await !ACK\n");
             }else if(!awaitAck && !robotAck){
                 if(currentBit >= bitsToSend){
                     state = State::Idle;
                     debugf("Finished transmision.\n");
                     awaitForFinish();
                 }else{
-                    debugf("NextPart...\n");
+                    //debugf("NextPart...\n");
                     outputCurrentMsgPart();
                 }
             }
@@ -172,7 +172,7 @@ public:
                     debugf("Finished transmision.\n");
                     awaitForFinish();
                 }else{
-                    debugf("NextPart...\n");
+                    //debugf("NextPart...\n");
                     outputCurrentMsgPart(awaitAck);
                 }
             }

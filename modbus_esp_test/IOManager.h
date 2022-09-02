@@ -332,15 +332,20 @@ struct IOManager{
       dio.assignFunctionToPin(DIO::Function::OMotorOn, DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1003));
       dio.assignFunctionToPin(DIO::Function::OZeroing, DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1004));
       dio.assignFunctionToPin(DIO::Function::OReset,   DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1005));
+      dio.assignFunctionToPin(DIO::Function::OCycleStart,   DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1006));
        
       dio.assignFunctionToPin(DIO::Function::OSend,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1008));
       dio.assignFunctionToPin(DIO::Function::OCmd1,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1001));
       dio.assignFunctionToPin(DIO::Function::OCmd2,    DIO::PinMode::Output, invertedOutput, DIO::Type::RobotIn,  RobotToPcfPin(1002));
 
-      dio.assignFunctionToPin(DIO::Function::IError,   DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(7));
-      dio.assignFunctionToPin(DIO::Function::IIdle,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(1));
-      dio.assignFunctionToPin(DIO::Function::IAck,     DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(2));
-      dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,  invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
+      dio.assignFunctionToPin(DIO::Function::IIdle,    DIO::PinMode::Input,   invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(1));
+      dio.assignFunctionToPin(DIO::Function::IAck,     DIO::PinMode::Input,   invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(2));
+      dio.assignFunctionToPin(DIO::Function::IGrab,    DIO::PinMode::Input,   invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(3));
+      dio.assignFunctionToPin(DIO::Function::IReady,   DIO::PinMode::Input,  !invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(4));
+      dio.assignFunctionToPin(DIO::Function::IError,   DIO::PinMode::Input,  !invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(5));
+      dio.assignFunctionToPin(DIO::Function::IZeroed,  DIO::PinMode::Input,  !invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(6));
+      dio.assignFunctionToPin(DIO::Function::IMotorOn, DIO::PinMode::Input,  !invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(7));
+      dio.assignFunctionToPin(DIO::Function::ICycle,   DIO::PinMode::Input,  !invertedInput,  DIO::Type::RobotOut, RobotToPcfPin(8));
 
       dio.assignFunctionToPin(DIO::Function::GGrab,     DIO::PinMode::Output,  false,  DIO::Type::GPIO,    7);
       dio.assignFunctionToPin(DIO::Function::GTestButt, DIO::PinMode::Output,  false,  DIO::Type::GPIO,    6);
@@ -434,13 +439,24 @@ struct IOManager{
       return refreshOutState();
    }
    
+   int lastgrab = 0;
    void loop(){
     refreshOutState(false);
     bool success = refreshInState(false);
 
     if(success){
-      dio.write(DIO::Function::GGrab, !dio.readVal(DIO::Function::IGrab, false));
+      auto val = !dio.readVal(DIO::Function::IGrab, false);
+      if(val && lastgrab != 1){
+        lastgrab = 1;
+        Serial.println("[TEST] Setting GRAB to TRUE !!!!");
+      }
+      if(!val && lastgrab != -1){
+        lastgrab = -1;
+        Serial.println("[TEST] Setting GRAB to FALSE !!!!");
+      }
+      dio.write(DIO::Function::GGrab, val);
     }else{
+      Serial.println("[TEST] IOIOIOIOIO!!!!");
       dio.write(DIO::Function::GGrab, false, true);
     }
    }

@@ -28,6 +28,8 @@ const char* HELP_STR =
 "da name pin out? inv? - assigns a pin (1-8, 1001-1008, D0-D8) to a name\n"
 "demo (0|1)            - set DEMO mode\n"
 "stopsend              - aborts sending cmd\n"
+"flashcontrol          - restarts control signals\n"
+"setupcontrol (0|1)    - set weather to perform setup of control signals\n"
 "mqttupd ms            - set Mqtt update interval (in ms)\n"
 "mqttrec ms            - set Mqtt reconnect timeout (in ms)\n"
 "mqttaddr addr         - set Mqtt address\n"
@@ -262,6 +264,15 @@ struct CommandManager
       Serial.println("Aborting transfer\n");
       acm->abort();
       ioManager.setupPins();
+    }
+    else if(args[0] == "flashcontrol"){
+      Serial.println("Flashing Control Signals");
+      acm->flashControlSignals = true;
+    }
+    else if(args[0] == "setupcontrol"){
+      bool val = args[1][0] == '1';
+      Serial.printf("Setting Setup Control to %d\n", val);
+      acm->performSetupSignals = val;
     }
     else if(args[0] == "mqttupd"){
       int val = args[1].toInt();

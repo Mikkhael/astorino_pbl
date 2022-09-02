@@ -4,7 +4,7 @@ Main Commands
 5 .. 9     	- Take Top from Storage (of given offset) and Check If Grabbed --Assemble on Table--
 20          - Put on Table (from Check If Grabbed)
 21          - Assemble on Table (from Check If Grabbed)
-10       	- Take Top from Table and Put as Done
+10       	- Take Completed from Table and Put as Done
 15			- Take Bottom from Table and Put as Discard
 16			- Disassemble Top from Table and Put as Discard
 17			- Take Completed from Table and Put as Discard

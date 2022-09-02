@@ -104,6 +104,7 @@ function parseMQTT_robotstate(payload){
         res[Mqtt_robotstate_labels_uint16[i]] = view.getUint16(2*i + Mqtt_robotstate_labels_bool.length, true);
     }
     //console.log(payload);
+    res["IGrab"] = !res["IGrab"];
     return res;
 }
 

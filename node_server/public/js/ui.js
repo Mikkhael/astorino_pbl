@@ -144,8 +144,29 @@ function getNewAssemblyRequest(){
 const PlcStateNames = {
 
     "0": "IDLE",
-
-    "-1": "Element has NOT been grabbed from Storage. Awaiting operator's decision.",
+    "1": "GET BOTTOM",
+    "2": "CHECK BOTTOM PRESENCE",
+    "3": "PLACE BOTTOM",
+    "4": "TURN BOTTOM TO COLOR CHECK",
+    "5": "CHECK BOTTOM COLOR",
+    "6": "TURN BOTTOM TO ROBOT",
+    "7": "GET TOP",
+    "8": "CHECK TOP PRESENCE",
+    "9": "MOUNT TOP",
+   "10": "TURN ASSEMBLED TO COLOR CHECK",
+   "11": "CHECK TOP COLOR",
+   "12": "TURN TO PRESS CHECK",
+   "13": "PRESS CHECK",
+   "14": "PRESS RELEASE",
+   "15": "TURN ASSEMBLED TO ROBOT",
+   "16": "OUTPUT ASSEMBLED",
+   "17": "SIGNAL FINISH",
+   
+    "-1": "CRITICAL ERROR (OPERATOR REQUIRED)",
+    "-7": "DISCARD INVALID COLOR BOTTOM",
+   "-12": "TURN INVALID COLOR ASSEMBLED TO ROBOT",
+   "-13": "DISCARD INVALID COLOR TOP",
+   "-16": "DISCARD FAILED PRESS ASSEMBLED",
 };
 
 function updateServerState(state = {}){
