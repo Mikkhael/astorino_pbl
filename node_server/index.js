@@ -201,6 +201,7 @@ function analyseImage(jpegBytes, cropSize){
   // Analyse pixel data
   const avg = [0,0,0]; // Average pixel color of the cropped section
   const dev = [0,0,0]; // Standard deviation of pixel colors
+  const detectedcolor [0]; // Depended of h value, 1-blue,2-green,3-violet
   for(let pixel_i=0; pixel_i < pixels.length; pixel_i += 4){ // Iterate over all pixels (RGBA)
     for(let channel=0; channel<3; channel++){ // Iterate over all channels
       avg[channel] += pixels[pixel_i+channel];
@@ -266,10 +267,11 @@ function broadcastNewImage(data){
    }
 
 
-	function rgbToHsl(avg) {
+	function rgbToHsl(avg,detectedcolor) {
 	  let r=avg[0];
 	  let g=avg[1];
 	  let b=avg[2];
+	  
 	  
 	  r /= 255, g /= 255, b /= 255;
 
@@ -294,11 +296,23 @@ function broadcastNewImage(data){
 	  console.log("Wartość s:" +s);
 	  console.log("Wartość l:" +l);
 	  
-	  if(h >= 0.135 && h <= 0.142)
+	  if(h >= 0.550 && h <= 0.585)
 	  {
-		  console.log("To jest pomarancza");
+		  console.log("To jest niebieski");
+		  detectedcolor[0]=1;
+	  
+	   if(h >= 0.285 && h <= 0.375)
+	  {
+		  console.log("To jest zielony");
+		    detectedcolor[0]=2;;
 	  }
+	     if(h >= 0.695 && h <= 0.715)
+	  {
+		  console.log("To jest fioletowy");
+		    detectedcolor[0]=3;
+	  }
+	  
 		  
 	  
-	  return [ h, s, l ];
+	  return [ h, s, l , detectedcolor];
 	}
