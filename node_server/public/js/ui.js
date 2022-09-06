@@ -10,6 +10,7 @@ const UI = {
         /**@type {HTMLElement} */ hsl: null,
         /**@type {HTMLElement} */ cropSize: null,
         /**@type {HTMLElement} */ avgColor: null,
+        /**@type {HTMLElement} */ recognizedColor: null,
     },
     assemblyRequest: {
         /**@type {HTMLSelectElement} */ bottomColorSelect: null,
@@ -57,6 +58,7 @@ function initUIElements(){
     UI.imageAnalysis.cropSize = querySelector('#cropSize');
     UI.imageAnalysis.avgColor = querySelector('#avgColor');
     UI.imageAnalysis.cropper = querySelector("#cropper");
+    UI.imageAnalysis.recognizedColor = querySelector("#recognizedColor");
 
     UI.assemblyRequest.bottomColorSelect = querySelector("#bottomColorSelect");
     UI.assemblyRequest.topColorSelect    = querySelector("#topColorSelect");
@@ -114,7 +116,7 @@ function rgbColorFromArray(arr){
     return `rgb(${ arr.map(x => Math.floor(x)).join(',') })`;
 }
 
-
+const colorNames = ["Blue", "Green", "Purple", "---"];
 function updateImageAnalysis(data = {}){
     const hsl = [data.h, data.s, data.l];
     UI.imageAnalysis.avg.innerHTML = data.avg.map(x => x.toFixed(0));
@@ -125,6 +127,9 @@ function updateImageAnalysis(data = {}){
     UI.imageAnalysis.avgColor.style.width = UI.imageAnalysis.cameraImage.clientWidth + 'px';
 
     UI.imageAnalysis.cropSize.innerHTML = data.cropSize;
+
+    
+    UI.imageAnalysis.recognizedColor.innerHTML = colorNames[data.col];
 
     UI.imageAnalysis.cropper.style.height = data.cropSize*2 + 'px';
     UI.imageAnalysis.cropper.style.width  = data.cropSize*2 + 'px';

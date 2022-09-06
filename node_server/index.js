@@ -39,6 +39,10 @@ const mbclient = new Modbus(
   Config.mb_reconnectTimeout
 );
 
+mbclient.getCameraColor = function(){
+  return detectedcolor;
+}
+
 mbclient.onAssemblyCompleted = function(requestId, request){
     console.log("[MBUS]", `Completed Request Id: ${requestId}, Colors: ${request.bottomColor} | ${request.topColor}`);
 }
@@ -151,7 +155,7 @@ function handleMqttMessage(topic, payload){
     console.log("Received image.");
     broadcastNewImage(payload);
     const [avg, dev, hsl] = analyseImage(payload, cropSize);
-    broadcastImageAnalysis(avg, dev, cropSize, hsl[0], hsl[1], hsl[2]);
+    broadcastImageAnalysis(avg, dev, cropSize, hsl[0], hsl[1], hsl[2], detectedcolor);
 
   }else if(topic == "assemblyRequest"){
     const request = JSON.parse(payload.toString());
@@ -172,9 +176,9 @@ function broadcastState(){
 }
 let boradcastStateInterval = setInterval(broadcastState, 500);
 
-function broadcastImageAnalysis(avg, dev, cropSize, h, s, l){
+function broadcastImageAnalysis(avg, dev, cropSize, h, s, l, col){
   const payload = { // Create an object with image analysis results
-    avg, dev, cropSize, h, s, l
+    avg, dev, cropSize, h, s, l, col
   };
   const payload_str = JSON.stringify(payload); // Convert the object to a string
   mqttClient.publish("analysis", payload_str); // Publish the message
@@ -186,6 +190,7 @@ const Height = 240;
 const cameraImageCanvas = canvas.createCanvas(Width, Height);
 const ctx = cameraImageCanvas.getContext("2d");
 
+let detectedcolor = 3; // Depended of h value, 0-blue,1-green,2-violet
 
 /**
  * @param {Buffer} jpegBytes 
@@ -201,7 +206,6 @@ function analyseImage(jpegBytes, cropSize){
   // Analyse pixel data
   const avg = [0,0,0]; // Average pixel color of the cropped section
   const dev = [0,0,0]; // Standard deviation of pixel colors
-  const detectedcolor [0]; // Depended of h value, 1-blue,2-green,3-violet
   for(let pixel_i=0; pixel_i < pixels.length; pixel_i += 4){ // Iterate over all pixels (RGBA)
     for(let channel=0; channel<3; channel++){ // Iterate over all channels
       avg[channel] += pixels[pixel_i+channel];
@@ -215,7 +219,7 @@ function analyseImage(jpegBytes, cropSize){
   }
   matchcolor(avg);
   let hsl = rgbToHsl(avg);
-  return [avg, dev, hsl];
+  return [avg, dev, hsl, detectedcolor];
 }
 
 /**
@@ -267,7 +271,7 @@ function broadcastNewImage(data){
    }
 
 
-	function rgbToHsl(avg,detectedcolor) {
+	function rgbToHsl(avg) {
 	  let r=avg[0];
 	  let g=avg[1];
 	  let b=avg[2];
@@ -299,18 +303,21 @@ function broadcastNewImage(data){
 	  if(h >= 0.550 && h <= 0.585)
 	  {
 		  console.log("To jest niebieski");
-		  detectedcolor[0]=1;
-	  
-	   if(h >= 0.285 && h <= 0.375)
+		  detectedcolor = 0;
+    }
+	  else if(h >= 0.285 && h <= 0.375)
 	  {
 		  console.log("To jest zielony");
-		    detectedcolor[0]=2;;
+      detectedcolor = 1;
 	  }
-	     if(h >= 0.695 && h <= 0.715)
+	  else if(h >= 0.695 && h <= 0.715)
 	  {
 		  console.log("To jest fioletowy");
-		    detectedcolor[0]=3;
+      detectedcolor = 2;
 	  }
+    else{
+      detectedcolor = 3;
+    }
 	  
 		  
 	  

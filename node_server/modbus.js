@@ -73,7 +73,7 @@ class Modbus extends jsmodbus.client.TCP{
         this.loopPromise = Promise.resolve();
         this.loopCompleted = false;
 
-        this.getCameraColor = function() {return 1;};
+        this.getCameraColor = function() {return ;};
         this.onAssemblyRequestSend = function(requestId, request, err){console.log("Ass", requestId, request, err);};
         this.onAssemblyCompleted = function(requestId, request){console.log("AssC", requestId, request);}
         this.onColorUpdateSend = function(finishedId, color, err){console.log("Col", finishedId, color, err);};
