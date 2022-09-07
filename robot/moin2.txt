@@ -194,7 +194,7 @@
    ; Take Storage
    IsTakingFromStorage = 0
    IsTakingTop = 0
-   IF ((ActionTake > 10) * (ActionTake < 23) * (StorageOffset < 4)) THEN
+   IF ((ActionTake > 10) * (ActionTake < 13) * (StorageOffset < 4)) THEN
       SIGNAL -2010 ; No Take Error
       TakeApp = StorageApp
       IsTakingFromStorage = 1

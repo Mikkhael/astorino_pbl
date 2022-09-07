@@ -300,17 +300,17 @@ function broadcastNewImage(data){
 	  console.log("Wartość s:" +s);
 	  console.log("Wartość l:" +l);
 	  
-	  if(h >= 0.550 && h <= 0.585)
+	  if(h >= 0.545 && h <= 0.610)
 	  {
 		  console.log("To jest niebieski");
 		  detectedcolor = 0;
     }
-	  else if(h >= 0.285 && h <= 0.375)
+	  else if(h >= 0.275 && h <= 0.380)
 	  {
 		  console.log("To jest zielony");
       detectedcolor = 1;
 	  }
-	  else if(h >= 0.695 && h <= 0.715)
+	  else if(h >= 0.675 && h <= 0.725)
 	  {
 		  console.log("To jest fioletowy");
       detectedcolor = 2;
